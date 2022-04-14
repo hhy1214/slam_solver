@@ -114,15 +114,33 @@ namespace SLAM_Solver
                       << jacobians_[2] << std::endl;            
         }
 
-        Pose::Ptr get_curFeature()
+        Pose::Ptr get_curPose()
         {
             return m_curPose;
+        }
+
+        Pose::Ptr get_startPose()
+        {
+            return m_startPose;
+        }
+
+        FeatureID::Ptr get_curFeature()
+        {
+            return m_curFeature;
         }
 
         void SetTranslationImuFromCamera(Eigen::Quaterniond &qic_, Eigen::Vector3d &tic_)
         {
             qic = qic_;
             tic = tic_;
+        }
+
+        std::vector<Eigen::MatrixXd> Jacobians() {
+            return jacobians_;
+        }
+
+        VecX Residual() {
+            return residual_;
         }
 
     private:

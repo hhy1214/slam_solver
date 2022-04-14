@@ -52,7 +52,7 @@ public:
     // void addIMUResidualBlock(int lastposeIdx, int curposeIdx);                    // 添加IMU残差块 IntegrationBase *_pre_integration 
     void addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj);  // 添加视觉残差块
     // void addStereoFeatureResidualBlock(int featureIdx, int numOfMeasure);
-    // void solve();                                                                 // 优化求解
+    void solve();                                                                 // 优化求解
 
 
     // void addPriorBlock();                                                         // 添加边缘化信息
@@ -71,6 +71,7 @@ private:
     // void updateSchurComplement();          // 跟新 Schur 举证块
     // void solveSchurComplement();           // 求解 Schur 方程，获得相机位姿增量
     // void solveInverseDepth();              // 计算逆深度
+    void makeHession();
     
 
     
@@ -78,12 +79,20 @@ private:
     std::vector<double> cameraIntrinsics, rightCameraIntrinsics;    // 左右目相机内参
     bool isIncremental;                                             // 是否增量化
     int interatorNum;                                               // 迭代次数
+
+    std::vector<int> PoseIdxs;                                      // 对应Pose索引
     std::unordered_map<int, Pose::Ptr> m_Poses;                     // 所包含的Pose优化量
+    std::vector<int> FeatureIDIdxs;                                 // 对应feature索引
     std::unordered_map<int, FeatureID::Ptr> m_FeatureIDs;           // 所包含的feature优化量
-    std::vector<costFunction::Ptr> m_costFunctions;           // 所包含的feature优化量
+    std::vector<costFunction::Ptr> m_costFunctions;                 // 所包含的feature优化量
     SolverType solverType;
 
     std::mutex mutex_map;
+
+    /// 整个信息矩阵
+    MatXX Hessian_;
+    VecX b_;
+    VecX delta_x_;
 };
 
 }

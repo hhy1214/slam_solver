@@ -40,26 +40,36 @@ int main(int argc, char** argv)
     // Eigen::Quaterniond q_j(0.92388, 0.0, 0.0, 0.382683);
     // Eigen::Vector3d t_j(-2.34315, 5.65685, 1);
     // posei->set_T(q_j, t_j);
-    int ID1 = 1;
-    SLAM_Solver::Pose::Ptr posej(new SLAM_Solver::Pose(ID1));
-    Eigen::Quaterniond q_j(0.965926, 0.0, 0.0, 0.258819);
-    Eigen::Vector3d t_j(-1.0718, 4, 0.866025);
-    posej->set_T(q_j, t_j);
+    // int ID1 = 1;
+    // SLAM_Solver::Pose::Ptr posej(new SLAM_Solver::Pose(ID1));
+    // Eigen::Quaterniond q_j(0.965926, 0.0, 0.0, 0.258819);
+    // Eigen::Vector3d t_j(-1.0718, 4, 0.866025);
+    // posej->set_T(q_j, t_j);
 
     //第二帧
+    // int ID2 = 2;
+    // SLAM_Solver::Pose::Ptr posez(new SLAM_Solver::Pose(ID2));
+    // Eigen::Quaterniond q_z(0.866025, 0.0, 0.0, 0.5);
+    // Eigen::Vector3d t_z(-4, 6.9282, 0.866025);
+    // posez->set_T(q_z, t_z);
     int ID2 = 2;
     SLAM_Solver::Pose::Ptr posez(new SLAM_Solver::Pose(ID2));
-    Eigen::Quaterniond q_z(0.866025, 0.0, 0.0, 0.5);
-    Eigen::Vector3d t_z(-4, 6.9282, 0.866025);
+    Eigen::Quaterniond q_z(0.92388, 0.0, 0.0, 0.382683);
+    Eigen::Vector3d t_z(-2.34315, 5.65685, 1);
     posez->set_T(q_z, t_z);
 
     //feature
     int ID_f = 1;
     double depinv = 0.227057;
 
+    //feature
+    int ID_f1 = 2;
+    double depinv1 = 0.198729;
+
     Eigen::Vector3d test1(-0.496282, -0.072897, 1);
-    Eigen::Vector3d test2(-0.87053, -0.863969, 1);
-    Eigen::Vector3d test3(-1.4785, -1.40608, 1);
+    Eigen::Vector3d test2(-1.18223, -1.21971, 1);
+    Eigen::Vector3d test3(-0.565868, -0.643457, 1);
+    Eigen::Vector3d test4(-1.47837, -1.1701, 1);
 
     Eigen::Quaterniond qic(1, 0, 0, 0);
     Eigen::Vector3d tic(0, 0, 0);
@@ -69,30 +79,32 @@ int main(int argc, char** argv)
     BAProblem.initialStructure();
     BAProblem.addPoseParameterBlock(t_i, q_i, ID);
     BAProblem.addFeatureParameterBlock(depinv, ID_f);
-    BAProblem.addPoseParameterBlock(t_j, q_j, ID1);
+    // BAProblem.addPoseParameterBlock(t_j, q_j, ID1);
     BAProblem.addPoseParameterBlock(t_z, q_z, ID2);
+    BAProblem.addFeatureParameterBlock(depinv1, ID_f1);
     LOG(INFO) << "Parameter block added! ! !";
 
     LOG(INFO) << "Residual block add started! ! !";
-    BAProblem.addFeatureResidualBlock(ID, ID1, ID_f, test1, test2);
-    BAProblem.addFeatureResidualBlock(ID, ID2, ID_f, test1, test3);
+    BAProblem.addFeatureResidualBlock(ID, ID2, ID_f1, test3, test4);
+    BAProblem.addFeatureResidualBlock(ID, ID2, ID_f, test1, test2);
     LOG(INFO) << "Residual block added! ! !";
 
     SLAM_Solver::Pose::Ptr pose_test = BAProblem.get_Pose(ID);
     SLAM_Solver::FeatureID::Ptr feature_test = BAProblem.get_FeatureID(ID_f);
-    SLAM_Solver::Pose::Ptr pose_cur = BAProblem.get_Pose(ID1);
+    // SLAM_Solver::Pose::Ptr pose_cur = BAProblem.get_Pose(ID1);
 
     LOG(INFO) << "costF_tests started! ! !";
     std::vector<SLAM_Solver::costFunction::Ptr> costF_tests = BAProblem.get_all_costFunction();
     int i = 1;
     for(auto costF_test : costF_tests) {
         LOG(INFO) << "costF_tests started the   " << i << "   tset !!!";
-        SLAM_Solver::Pose::Ptr cue_cost_pose = costF_test->get_curFeature();
+        SLAM_Solver::Pose::Ptr cue_cost_pose = costF_test->get_startPose();
         costF_test->SetTranslationImuFromCamera(qic, tic);
         costF_test->ComputeResidual();
         i++; 
     }
        
+    BAProblem.solve();
     
     
     return 0;
