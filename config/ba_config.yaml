@@ -1,0 +1,39 @@
+%YAML:1.0
+
+#common parameters
+#support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
+imu: 0       
+num_of_cam: 1
+stereo: 0
+
+#landmarktype
+#inv_depth: 0; xyz: 1
+landmarktype: 0 
+
+camera0_imu_topic: "/camera1/imu"
+camera1_imu_topic: "/camera2/imu"
+camera2_imu_topic: "/camera3/imu"
+
+camera0_left_topic: "/camera1/infra1/image_rect_raw"
+camera0_right_topic: "/camera1/infra2/image_rect_raw"
+camera1_left_topic: "/camera2/infra1/image_rect_raw"
+camera1_right_topic: "/camera2/infra2/image_rect_raw"
+camera2_left_topic: "/camera3/infra1/image_rect_raw"
+camera2_right_topic: "/camera3/infra2/image_rect_raw"
+
+output_path: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/results"
+
+image_width: 640
+image_height: 480
+
+distortion_parameters:
+   k1: 0
+   k2: 0
+   p1: 0
+   p2: 0
+projection_parameters:
+   fx: 383.1009216308594
+   fy: 383.1009216308594
+   cx: 320.5055236816406
+   cy: 237.51809692382812
+   

@@ -86,8 +86,14 @@ namespace SLAM_Solver
             return static_cast<FeatureMeasure::Ptr>(nullptr);
         }
 
-    private:
+        void Plus(VecX delta_) {
+            invDep += delta_[0];
+        }
+
+    public:
         int featureId;            // feature  id
+
+    private:
         int start_frame;          // 起始帧 id
         int localDimension;       // 局部参数化维度
         double invDep;            // 逆深度

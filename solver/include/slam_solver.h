@@ -13,8 +13,10 @@
 #include <unordered_map>
 #include <mutex>
 #include "costfunction.h"
+#include "parameters.h"
 
 namespace SLAM_Solver{
+    typedef unsigned long ulong;
 
 class BA_problem
 {
@@ -40,13 +42,13 @@ public:
     void setSolverType(SolverType type) {
         solverType = type;
     }
-    // 一次性设置多个参数
-    void setParameters() {
+    // // 一次性设置多个参数
+    // void setParameters() {
 
-    }
+    // }
 
 // 外部接口
-    void initialStructure();
+    void initialStructure(std::string config_yaml);
     bool addPoseParameterBlock(Eigen::Vector3d m_p, Eigen::Quaterniond m_q, int ID);               // 添加优化变量,相机位姿
     bool addFeatureParameterBlock(double invDepth, int ID);               // 添加优化变量,相机位姿
     // void addIMUResidualBlock(int lastposeIdx, int curposeIdx);                    // 添加IMU残差块 IntegrationBase *_pre_integration 
@@ -57,10 +59,12 @@ public:
 
     // void addPriorBlock();                                                         // 添加边缘化信息
     // void setMargin(int poseIdx);
-    // void getSolveResults();                                                       // 获取优化结果
+    void getSolveResults();                                                       // 获取优化结果
 
     Pose::Ptr get_Pose(int poseIdx);
     FeatureID::Ptr get_FeatureID(int featureIdx);
+    std::vector<Pose::Ptr> get_all_Pose();
+    std::vector<FeatureID::Ptr> get_all_FeatureID();
     std::vector<costFunction::Ptr> get_all_costFunction();
 
 private:
@@ -71,11 +75,23 @@ private:
     // void updateSchurComplement();          // 跟新 Schur 举证块
     // void solveSchurComplement();           // 求解 Schur 方程，获得相机位姿增量
     // void solveInverseDepth();              // 计算逆深度
+    void readParameters(std::string config_file);
     void makeHession();
+
+    void ComputeLambdaInitLM();
+    void SolveLinearSystem();
+    VecX PCGSolver(const MatXX &A, const VecX &b, int maxIter);
+    void UpdateStates();
+    bool IsGoodStepInLM();
+    void RollbackStates();
+
+    //对应的各种配置参数
+    
     
 
     
 
+    parameters::Ptr Parameters; // 从yaml文件中读取的参数
     std::vector<double> cameraIntrinsics, rightCameraIntrinsics;    // 左右目相机内参
     bool isIncremental;                                             // 是否增量化
     int interatorNum;                                               // 迭代次数
@@ -93,6 +109,20 @@ private:
     MatXX Hessian_;
     VecX b_;
     VecX delta_x_;
+
+    double currentLambda_;
+    double currentChi_;
+    double stopThresholdLM_;    // LM 迭代退出阈值条件
+    double ni_;                 //控制 Lambda 缩放大小
+
+    /// SBA的Pose部分
+    MatXX H_pp_schur_;
+    VecX b_pp_schur_;
+    // Heesian 的 Landmark 和 pose 部分
+    MatXX H_pp_;
+    VecX b_pp_;
+    MatXX H_ll_;
+    VecX b_ll_;
 };
 
 }

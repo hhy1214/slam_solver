@@ -7,6 +7,9 @@
 #include <map>
 #include "macro.h"
 #include <unordered_map>
+#include "eigen_type.h"
+#include "utility.h"
+#include "sophus/so3.hpp"
 
 namespace SLAM_Solver
 {
@@ -25,10 +28,14 @@ namespace SLAM_Solver
         }
         Eigen::Quaterniond get_rotate();
         Eigen::Vector3d get_translation();
+        void Plus(VecX delta_);
+
+    public:
+        int m_frame_id;                         // frame id
 
     private:
         int localDimension;                     // 局部参数化维度
-        int m_frame_id;                         // frame id
+        
         std::vector<int> m_PointID;             // feature id
         std::vector<Eigen::Vector2d> m_pointxy; // 对应feature的2D坐标，即uv
         Eigen::Vector3d m_p;                    // frame 的 t

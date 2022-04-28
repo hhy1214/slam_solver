@@ -68,8 +68,8 @@ namespace SLAM_Solver
             double dep_j = pts_camera_j.z();
             residual_ = (pts_camera_j / dep_j).head<2>() - pts_j_.head<2>(); /// J^t * J * delta_x = - J^t * r
             //    residual_ = information_ * residual_;   // remove information here, we multi information matrix in problem solver
-            std::cout << "residual_: " << std::endl
-                      << residual_ << std::endl;
+            // std::cout << "residual_: " << std::endl
+            //           << residual_ << std::endl;
 
             Mat33 Ri = Qi.toRotationMatrix();
             Mat33 Rj = Qj.toRotationMatrix();
@@ -104,14 +104,14 @@ namespace SLAM_Solver
 
             jacobians_.resize(3);
             jacobians_[0] = jacobian_feature;
-            std::cout << "jacobians_[0]: " << std::endl
-                      << jacobians_[0] << std::endl;
+            // std::cout << "jacobians_[0]: " << std::endl
+            //           << jacobians_[0] << std::endl;
             jacobians_[1] = jacobian_pose_i;
-            std::cout << "jacobians_[1]: " << std::endl
-                      << jacobians_[1] << std::endl;
+            // std::cout << "jacobians_[1]: " << std::endl
+            //           << jacobians_[1] << std::endl;
             jacobians_[2] = jacobian_pose_j;
-            std::cout << "jacobians_[2]: " << std::endl
-                      << jacobians_[2] << std::endl;            
+            // std::cout << "jacobians_[2]: " << std::endl
+            //           << jacobians_[2] << std::endl;            
         }
 
         Pose::Ptr get_curPose()
@@ -141,6 +141,10 @@ namespace SLAM_Solver
 
         VecX Residual() {
             return residual_;
+        }
+
+        double Chi2() {
+            return residual_.transpose() * residual_;
         }
 
     private:

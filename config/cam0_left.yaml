@@ -1,0 +1,16 @@
+%YAML:1.0
+---
+model_type: PINHOLE
+camera_name: /camera1/infra1/image_rect_raw
+image_width: 640
+image_height: 480
+distortion_parameters:
+   k1: 0
+   k2: 0
+   p1: 0
+   p2: 0
+projection_parameters:
+   fx: 383.1009216308594
+   fy: 383.1009216308594
+   cx: 320.5055236816406
+   cy: 237.51809692382812

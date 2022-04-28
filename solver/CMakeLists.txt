@@ -38,6 +38,8 @@ add_executable(test1
     src/test/hello.cpp
     src/pose.cpp
     src/slam_solver.cpp
+    src/utility.cpp
+    src/parameters.cpp
     )
 
 

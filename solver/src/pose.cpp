@@ -28,5 +28,16 @@ namespace SLAM_Solver
     Eigen::Vector3d Pose::get_translation() {
         return m_p;
     }
+
+    void Pose::Plus(VecX delta_) {
+
+    m_p.head<3>() += delta_.head<3>(); //>>平移部分相加
+    Eigen::Quaterniond q;
+    q = m_q;
+    q = q * Sophus::SO3d::exp(Vec3(delta_[3], delta_[4], delta_[5])).unit_quaternion();  // right multiplication with so3
+    m_q = q.normalized();
+//    Qd test = Sophus::SO3d::exp(Vec3(0.2, 0.1, 0.1)).unit_quaternion() * Sophus::SO3d::exp(-Vec3(0.2, 0.1, 0.1)).unit_quaternion();
+//    std::cout << test.x()<<" "<< test.y()<<" "<<test.z()<<" "<<test.w() <<std::endl;
+    }
     
 } // namespace SLAM_Solver
