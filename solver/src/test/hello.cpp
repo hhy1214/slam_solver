@@ -32,7 +32,7 @@ struct Frame {
  * @retval None
  */
 void GetSimDataInWordFrame(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &points) {
-    int featureNums = 10;  // 特征数目，假设每帧都能观测到所有的特征
+    int featureNums = 60;  // 特征数目，假设每帧都能观测到所有的特征
     int poseNums = 15;     // 相机数目
 
     double radius = 8;
@@ -61,10 +61,6 @@ void GetSimDataInWordFrame(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
         for (int i = 0; i < poseNums; ++i) {
             Eigen::Vector3d Pc = cameraPoses[i].Rwc.transpose() * (Pw - cameraPoses[i].twc);           //相机坐标系？？？
             Pc = Pc / Pc.z();               // 归一化图像平面
-            Pc[0] += noise_pdf(generator);  // 高斯噪声
-            Pc[1] += noise_pdf(generator);
-            // std::cout << "22222" << noise_pdf(generator) << std::endl;
-            /*【C++标准程序库中凡是“必须返回两个值”的函数，也都会利用pair对象，pair可以将两个值视为一个单元；make_pair 无需写出型别，就可以生成一个pair对象】*/
             cameraPoses[i].featurePerId.insert(make_pair(j, Pc)); 
         }
     }
@@ -76,9 +72,9 @@ void add_camera_pose_noise(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
     // 生成随机数
     std::default_random_engine generator;    
     for(int i = 0; i < cameraPoses.size(); i++) {
-        std::normal_distribution<double>noise_pdf(0, M_PI / 16);
+        std::normal_distribution<double>noise_pdf(0, M_PI / 90);
         Eigen::Vector3d euler_angles = cameraPoses[i].qwc.normalized().toRotationMatrix().eulerAngles(2, 1, 0);
-        // std::cout << "cameraPoses原本的旋转角： " << euler_angles << std::endl;
+        std::cout << "cameraPoses原本的旋转角： " << euler_angles << std::endl;
         double noise_z = noise_pdf(generator);
         Eigen::AngleAxisd rotation_noise_z(noise_z, Eigen::Vector3d::UnitZ());
         double noise_y = noise_pdf(generator);
@@ -92,7 +88,7 @@ void add_camera_pose_noise(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
         Eigen::Quaterniond q_noise = Eigen::Quaterniond(noise_rotation);
 
         Eigen::Vector3d noise_euler_angles = q_noise.normalized().toRotationMatrix().eulerAngles(2, 1, 0);
-        // std::cout << "cameraPoses噪声的旋转角： " << noise_euler_angles << std::endl;
+        std::cout << "cameraPoses噪声的旋转角： " << noise_euler_angles << std::endl;
 
         //构造平移误差
         Eigen::Vector3d t = cameraPoses[i].twc;

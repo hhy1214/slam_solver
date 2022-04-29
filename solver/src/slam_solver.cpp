@@ -31,7 +31,7 @@ bool BA_problem::addFeatureParameterBlock(double invDepth, int ID) {
 void BA_problem::addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj) {
     std::lock_guard<std::mutex> lock(mutex_map);
     costFunction::Ptr costFuti(new SLAM_Solver::costFunction(pti, ptj));
-    LOG(INFO) << "addFeatureResidualBlock started!!!!!";
+    // LOG(INFO) << "addFeatureResidualBlock started!!!!!";
 
     //将点的观测进行构造，即对FeatureID::Ptr中的FeatureMeasure进行构造
     auto it = m_FeatureIDs.find(featureIdx);
@@ -40,7 +40,7 @@ void BA_problem::addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int
     featureid_->set_startframe(start_poseIdx);
     featureid_->addFeatureMeasure(start_poseIdx, pti);
     featureid_->addFeatureMeasure(cur_poseIdx, ptj);
-    LOG(INFO) << "featureid_ succeeded!!!!!";
+    // LOG(INFO) << "featureid_ succeeded!!!!!";
 
     //将观测投入到costFunction类中，将残差进行构建并保存
     auto it1 = m_Poses.find(start_poseIdx);
@@ -50,7 +50,7 @@ void BA_problem::addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int
     costFuti->set_startPose(posei_);
     costFuti->set_curPose(posej_);
     costFuti->set_curFeature(featureid_);
-    LOG(INFO) << "posei_ posej_ succeeded!!!!!";
+    // LOG(INFO) << "posei_ posej_ succeeded!!!!!";
 
     m_costFunctions.push_back(costFuti);
     // std::cout << "m_costFunctions.size(): " << m_costFunctions.size();
@@ -95,7 +95,8 @@ void BA_problem::solve() {
 
     bool stop = false;
     int iter = 0;
-    int iterations = 5;
+    int iterations = 15;
+    double last_chi_ = 1e20;
     while (!stop && (iter < iterations)) {
         LOG(INFO) << "目前迭代的次数: " << iter << "对应的currentChi_： " << currentChi_ << "currentLambda_: " << currentLambda_ ;
 
@@ -133,8 +134,13 @@ void BA_problem::solve() {
             // oneStepSuccess = true;
         }
         iter++;
-        if (sqrt(currentChi_) <= stopThresholdLM_)
+
+        if(sqrt(currentChi_) <= stopThresholdLM_)
+        {
+            std::cout << "sqrt(currentChi_) <= stopThresholdLM_" << std::endl;
             stop = true;
+        }
+        last_chi_ = currentChi_;
     }
 }
 
@@ -159,8 +165,8 @@ void BA_problem::RollbackStates() {
 
 bool BA_problem::IsGoodStepInLM() {
     double scale = 0;
-    scale = delta_x_.transpose() * (currentLambda_ * delta_x_ + b_);
-    scale += 1e-3;    // make sure it's non-zero :)
+    scale = 0.5 * delta_x_.transpose() * (currentLambda_ * delta_x_ + b_);
+    scale += 1e-6;    // make sure it's non-zero :)
 
     // recompute residuals after update state
     // TODO:: get robustChi2() instead of Chi2()
@@ -239,8 +245,9 @@ void BA_problem::SolveLinearSystem() {
         H_pp_schur_(i, i) += currentLambda_;
     }
 
-    int n = H_pp_schur_.rows() * 2;                       // 迭代次数
-    delta_x_pp = PCGSolver(H_pp_schur_, b_pp_schur_, n);  // pcg 求解
+    // int n = H_pp_schur_.rows() * 2;                       // 迭代次数
+    // delta_x_pp = PCGSolver(H_pp_schur_, b_pp_schur_, n);  // pcg 求解
+    delta_x_pp =  H_pp_schur_.ldlt().solve(b_pp_schur_);
     delta_x_.head(reserve_size) = delta_x_pp;
     // LOG(INFO) << " PCG 求解完成 ！！！" ;
     // std::cout << "delta_x_: " << delta_x_.transpose() << std::endl;  // ??? 结果相差

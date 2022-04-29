@@ -42,10 +42,6 @@ public:
     void setSolverType(SolverType type) {
         solverType = type;
     }
-    // // 一次性设置多个参数
-    // void setParameters() {
-
-    // }
 
 // 外部接口
     void initialStructure(std::string config_yaml);
