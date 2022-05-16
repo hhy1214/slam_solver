@@ -12,16 +12,49 @@
 #include <fstream>
 #include <map>
 
+const double FOCAL_LENGTH = 460.0;
+
 namespace SLAM_Solver
 {
+    enum SIZE_PARAMETERIZATION
+    {
+        SIZE_POSE = 7,
+        SIZE_SPEEDBIAS = 9,
+        SIZE_FEATURE = 1
+    };
+
+    enum StateOrder
+    {
+        O_P = 0,
+        O_R = 3,
+        O_V = 6,
+        O_BA = 9,
+        O_BG = 12
+    };
+
+    enum NoiseOrder
+    {
+        O_AN = 0,
+        O_GN = 3,
+        O_AW = 6,
+        O_GW = 9
+    };
+
     struct Camera
     {
         std::string cameraName;
-        int w; int h;
-        double k1; double k2; double p1; double p2;
-        double fx; double fy; double cx; double cy;
+        int w;
+        int h;
+        double k1;
+        double k2;
+        double p1;
+        double p2;
+        double fx;
+        double fy;
+        double cx;
+        double cy;
     };
-    
+
     class parameters
     {
     public:
@@ -46,8 +79,7 @@ namespace SLAM_Solver
         std::vector<Eigen::Matrix4d> CAM_TIC;
         std::vector<std::string> CAM_NAMES;
         // imu noise
-        std::vector<double> ACC_N, ACC_W;
-        std::vector<double> GYR_N, GYR_W;
+        double ACC_N, ACC_W, GYR_N, GYR_W;
     };
 
 } // namespace SLAM_Solver

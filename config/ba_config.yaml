@@ -2,7 +2,7 @@
 
 #common parameters
 #support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
-imu: 0       
+imu: 1       
 num_of_cam: 1
 stereo: 0
 
@@ -36,4 +36,23 @@ projection_parameters:
    fy: 383.1009216308594
    cx: 320.5055236816406
    cy: 237.51809692382812
+
+# camera0 extrinsic param
+imu_T_cam0_left: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [ 0.99997682,  0.00503933,  0.00457837, -0.0093734, 
+          -0.00506034,  0.99997667,  0.00458778,  0.00572269,
+          -0.00455514, -0.00461084,  0.999979,    0.02762095,
+           0.,          0.,          0.,          1.         ]
+
+#imu parameters       The more accurate parameters you provide, the better performance
+camera0_acc_n: 0.283546           # accelerometer measurement noise standard deviation. #0.2   0.04
+camera0_gyr_n: 0.0304607       # gyroscope measurement noise standard deviation.     #0.05  0.004
+camera0_acc_w: 6.8419802201779613e-04        # accelerometer bias random work noise standard deviation.  #0.002
+camera0_gyr_w: 1.6847425259467627e-05        # gyroscope bias random work noise standard deviation.     #4.0e-5
+
+g_norm: 9.805         # gravity magnitude
+
    

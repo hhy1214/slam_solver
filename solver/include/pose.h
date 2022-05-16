@@ -29,9 +29,12 @@ namespace SLAM_Solver
         Eigen::Quaterniond get_rotate();
         Eigen::Vector3d get_translation();
         void Plus(VecX delta_);
+        int OrderingId() const { return ordering_id_; }
+        void SetOrderingId(unsigned long id) { ordering_id_ = id; };
 
     public:
         int m_frame_id;                         // frame id
+        
 
     private:
         int localDimension;                     // 局部参数化维度
@@ -42,6 +45,13 @@ namespace SLAM_Solver
         Eigen::Quaterniond m_q;                 // frame 的 R
         // std::list<Feature> m_Keypoints;
         // IntegrationBase *pre_integration_;            //IMU预积分信息
+
+        /// ordering id是在problem中排序后的id，用于寻找雅可比对应块
+        /// ordering id带有维度信息，例如ordering_id=6则对应Hessian中的第6列
+        /// 从零开始
+        unsigned long ordering_id_ = 0;
+
+        
     };
 
     

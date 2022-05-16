@@ -74,7 +74,7 @@ void add_camera_pose_noise(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
     for(int i = 0; i < cameraPoses.size(); i++) {
         std::normal_distribution<double>noise_pdf(0, M_PI / 90);
         Eigen::Vector3d euler_angles = cameraPoses[i].qwc.normalized().toRotationMatrix().eulerAngles(2, 1, 0);
-        std::cout << "cameraPoses原本的旋转角： " << euler_angles << std::endl;
+        // std::cout << "cameraPoses原本的旋转角： " << euler_angles << std::endl;
         double noise_z = noise_pdf(generator);
         Eigen::AngleAxisd rotation_noise_z(noise_z, Eigen::Vector3d::UnitZ());
         double noise_y = noise_pdf(generator);
@@ -88,7 +88,7 @@ void add_camera_pose_noise(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
         Eigen::Quaterniond q_noise = Eigen::Quaterniond(noise_rotation);
 
         Eigen::Vector3d noise_euler_angles = q_noise.normalized().toRotationMatrix().eulerAngles(2, 1, 0);
-        std::cout << "cameraPoses噪声的旋转角： " << noise_euler_angles << std::endl;
+        // std::cout << "cameraPoses噪声的旋转角： " << noise_euler_angles << std::endl;
 
         //构造平移误差
         Eigen::Vector3d t = cameraPoses[i].twc;
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
     Eigen::Vector3d tic(0, 0, 0);
 
 
-    LOG(INFO) << "Parameter block add started! ! !";
+    // LOG(INFO) << "Parameter block add started! ! !";
     SLAM_Solver::BA_problem BAProblem;
     string config_file = argv[1];
     printf("config_file: %s\n", argv[1]);
@@ -151,6 +151,8 @@ int main(int argc, char** argv)
     for (int i = 0; i < noise_cameras.size(); ++i) {
         BAProblem.addPoseParameterBlock(noise_cameras[i].twc, noise_cameras[i].qwc, i);
     }
+    // std::vector<SLAM_Solver::Pose::Ptr> vec_pose =  BAProblem.get_all_Pose();
+    // std::cout << "00000000000000000000000000: " << vec_pose.size() << std::endl;
     LOG(INFO) << "Parameter block added! ! !";
 
     std::default_random_engine generator;
@@ -179,64 +181,57 @@ int main(int argc, char** argv)
     int z = 1;
     for(auto costF_test : costF_tests) {
         // LOG(INFO) << "costF_tests started the   " << i << "   tset !!!";
-        SLAM_Solver::Pose::Ptr cue_cost_pose = costF_test->get_startPose();
+
         costF_test->SetTranslationImuFromCamera(qic, tic);
         costF_test->ComputeResidual();
         z++; 
     }
+
+    // std::vector<int> vec_test;
+    // if(vec_test.size() == 0)
+    // {
+    //     std::cout << "jjjjjjjjjjjjjjjjjjjjjjj" << std::endl;
+    // }
+
+    // BAProblem.test();
+
+    // std::vector<int> poseidx;
+    // poseidx = BAProblem.get_all_Poseidx();
+    // std::cout << "0000000000000000000000000" << std::endl;
+    // for(int i = 0; i < poseidx.size(); i++)
+    // {
+    //     std::cout << "push出vector中的第" << i << "ge  data: " << poseidx[i] << std::endl;
+    // }
        
     BAProblem.solve();
     BAProblem.getSolveResults();
 
-    LOG(INFO) << "真实的位姿轨迹 ! ! !： ";
-    for(int i = 0; i < cameras.size(); i++) {
+    // LOG(INFO) << "真实的位姿轨迹 ! ! !： ";
+    // for(int i = 0; i < cameras.size(); i++) {
         
-        Eigen::Vector3d t1 = cameras[i].twc;
-        Eigen::Quaterniond q1 = cameras[i].qwc;
-        std::cout << std::setprecision(20) << i << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
-                   << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
-    }
+    //     Eigen::Vector3d t1 = cameras[i].twc;
+    //     Eigen::Quaterniond q1 = cameras[i].qwc;
+    //     std::cout << std::setprecision(20) << i << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
+    //                << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
+    // }
 
-    LOG(INFO) << "加入噪声的位姿轨迹 ! ! !： ";
-    for(int i = 0; i < noise_cameras.size(); i++) {
+    // LOG(INFO) << "加入噪声的位姿轨迹 ! ! !： ";
+    // for(int i = 0; i < noise_cameras.size(); i++) {
         
-        Eigen::Vector3d t1 = noise_cameras[i].twc;
-        Eigen::Quaterniond q1 = noise_cameras[i].qwc;
-        std::cout << std::setprecision(20) << i << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
-                   << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
-    }
+    //     Eigen::Vector3d t1 = noise_cameras[i].twc;
+    //     Eigen::Quaterniond q1 = noise_cameras[i].qwc;
+    //     std::cout << std::setprecision(20) << i << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
+    //                << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
+    // }
+
+    // LOG(INFO) << "真实的逆深度 ! ! !： ";
+    // for(int i = 0; i < points.size(); i++) {
+    //     Eigen::Vector3d Pw = points[i];
+    //     Eigen::Vector3d Pc = cameras[0].Rwc.transpose() * (Pw - cameras[0].twc); // 转到相机坐标
+    //     double inverse_depth = 1. / (Pc.z()); // 逆深度 + 噪声
+    //     std::cout << "第" << i << "点的逆深度为： " << inverse_depth << std::endl;
+    // }
     
     
     return 0;
 }
-
-    // std::vector<double> a;
-    // a.push_back(q_i.w());
-    // a.push_back(q_i.x());
-    // a.push_back(q_i.y());
-    // a.push_back(q_i.z());
-    // a.push_back(t_i[0]);
-    // a.push_back(t_i[1]);
-    // a.push_back(t_i[2]);
-
-    // for(int i = 0; i < a.size(); i++) {
-    //     std::cout << "111: " << a[i] << std::endl; 
-    // }
-    // Eigen::Matrix4d cur_cost_T_pose = cue_cost_pose->get_T();
-    // std::cout << "cur_cost_T_pose: " << cur_cost_T_pose << std::endl;
-
-
-    // tset Pose_plus()
-    // VecX delta_x_pp(VecX::Zero(7));
-    // delta_x_pp.block(0, 0, 3, 1) = t_z;
-    // delta_x_pp[3] = q_z.x();
-    // delta_x_pp[4] = q_z.y();
-    // delta_x_pp[5] = q_z.z();
-    // delta_x_pp[6] = q_z.w();
-
-    // std::cout << "delta_x_pp: " << delta_x_pp << std::endl;
-    // posei->Plus(delta_x_pp);
-    // Eigen::Quaterniond posei_p_gai = posei->get_rotate();
-    // Eigen::Vector3d posei_t_gai = posei->get_translation();
-    // std::cout << "posei_t_gai: " << posei_t_gai << std::endl;
-    // std::cout << "posei_p_gai: " << posei_p_gai.x() << " " << posei_p_gai.y()  << " " << posei_p_gai.z() << " " << posei_p_gai.w() << std::endl;

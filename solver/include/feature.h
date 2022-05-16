@@ -10,7 +10,7 @@
 
 namespace SLAM_Solver
 {
-    class FeatureMeasure
+        class FeatureMeasure
     {
     public:
         POINTER_TYPEDEFS(FeatureMeasure);
@@ -19,10 +19,18 @@ namespace SLAM_Solver
         {
             m_leftpoint = m_leftpoint_;
         }
-
+        void set_rightpoint(Eigen::Vector3d m_rightpoint_)
+        {
+            isDouble = true;
+            m_rightpoint = m_rightpoint_;
+        }
         Eigen::Vector3d get_leftpoint() {
             return m_leftpoint;
         }
+        Eigen::Vector3d get_rightpoint() {
+            return m_rightpoint;
+        }
+         
 
     private:
         bool isDouble;
@@ -31,6 +39,7 @@ namespace SLAM_Solver
         Eigen::Vector3d m_rightpoint;
         Eigen::Vector2d m_rightuv;
     };
+
 
     class FeatureID
     {
@@ -90,6 +99,9 @@ namespace SLAM_Solver
             invDep += delta_[0];
         }
 
+        int OrderingId() const { return ordering_id_; }
+        void SetOrderingId(unsigned long id) { ordering_id_ = id; };
+
     public:
         int featureId;            // feature  id
 
@@ -99,6 +111,11 @@ namespace SLAM_Solver
         double invDep;            // 逆深度
         Eigen::Vector3d start_uv; // 起始帧归一化坐标
         std::unordered_map<int, FeatureMeasure::Ptr> m_measures;
+
+        /// ordering id是在problem中排序后的id，用于寻找雅可比对应块
+        /// ordering id带有维度信息，例如ordering_id=6则对应Hessian中的第6列
+        /// 从零开始
+        unsigned long ordering_id_ = 0;
     };
 } // namespace SLAM_Solver
 

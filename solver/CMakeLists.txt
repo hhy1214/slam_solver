@@ -20,8 +20,8 @@ message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
 find_package(Ceres REQUIRED)
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
 
-find_package(glog REQUIRED)
-set(glog_LIBS glog::glog)
+#find_package(glog REQUIRED)
+#set(glog_LIBS glog::glog)
 message(INFO " mymap_VERSION: ${mymap_VERSION}")
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -40,9 +40,10 @@ add_executable(test1
     src/slam_solver.cpp
     src/utility.cpp
     src/parameters.cpp
+    src/motion.cpp
     )
 
 
-target_link_libraries(test1 ${catkin_LIBRARIES} ${glog_LIBS} ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_INCLUDE_DIR}) 
+target_link_libraries(test1 ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_INCLUDE_DIR})  #${glog_LIBS}
 
 

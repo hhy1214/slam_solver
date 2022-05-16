@@ -46,8 +46,9 @@ namespace SLAM_Solver
         {
             CAM_TIC.resize(2 * NUM_OF_CAM);
             CAM_NAMES.resize(2 * NUM_OF_CAM);
+            CAMERA_IMU_TOPIC.resize(2 * NUM_OF_CAM);
         }
-        
+
         fsSettings["camera0_left_topic"] >> Cameras[0].cameraName;
         Cameras[0].w = static_cast<int>(fsSettings["image_width"]);
         Cameras[0].h = static_cast<int>(fsSettings["image_height"]);
@@ -79,14 +80,39 @@ namespace SLAM_Solver
 
         if (USE_IMU)
         {
-            if (NUM_OF_CAM > 0)
+            if (NUM_OF_CAM == 1)
             {
                 // cam0 left extrinsic param
                 fsSettings["imu_T_cam0_left"] >> cv_T;
                 cv::cv2eigen(cv_T, T);
                 CAM_TIC[0] = T;
+                std::cout << "CAM_TIC[0]: " << CAM_TIC[0] << std::endl;
             }
         }
+
+        for (int i = 0; i < NUM_OF_CAM; i++)
+        {
+            if (USE_IMU)
+            {
+                std::string cam_imu_topic = "camera" + std::to_string(0) + "_imu_topic";
+                fsSettings[cam_imu_topic] >> CAMERA_IMU_TOPIC[0];
+                printf("CAMERA%d_IMU_TOPIC: %s\n", 0, CAMERA_IMU_TOPIC[0].c_str());
+            }
+        }
+
+        std::string temp_name;
+        temp_name = "camera" + std::to_string(0) + "_acc_n";
+        ACC_N = fsSettings[temp_name];
+        temp_name = "camera" + std::to_string(0) + "acc_w";
+        ACC_W = fsSettings["camera0_acc_w"];
+        temp_name = "camera" + std::to_string(0) + "_gyr_n";
+        GYR_N = fsSettings["camera0_gyr_n"];
+        temp_name = "camera" + std::to_string(0) + "_gyr_w";
+        GYR_W = fsSettings["camera0_gyr_w"];
+        printf("cam%d acc_n: %f\n", 0, ACC_N);
+        printf("cam%d acc_w: %f\n", 0, ACC_W);
+        printf("cam%d gyr_n: %f\n", 0, GYR_N);
+        printf("cam%d gyr_w: %f\n", 0, GYR_W);
     }
 
 } // namespace SLAM_Solver
