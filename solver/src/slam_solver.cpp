@@ -531,13 +531,13 @@ void BA_problem::makeHession()
         int index_H_posej = index_cur * 6;
         int index_H_feature = H_pose_size + index_feature;
         std::vector<int> index_H;
-        index_H.push_back(index_H_feature);
-        index_H.push_back(index_H_posei);
-        index_H.push_back(index_H_posej);
+        // index_H.push_back(index_H_feature);
+        // index_H.push_back(index_H_posei);
+        // index_H.push_back(index_H_posej);
 
-        // index_H.push_back(order_cur_feature_idx);
-        // index_H.push_back(order_start_frame_idx);
-        // index_H.push_back(order_cur_frame_idx);
+        index_H.push_back(order_cur_feature_idx);
+        index_H.push_back(order_start_frame_idx);
+        index_H.push_back(order_cur_frame_idx);
         std::vector<int> index_dim;
         index_dim.push_back(1);
         index_dim.push_back(6);
@@ -573,10 +573,35 @@ void BA_problem::makeHession()
         if (m_costOneFrameTwoCamFunctions.size() != 0)
         {
             std::cout << "444444444444444444" << std::endl;
-            for(auto m_costOneFrameTwoCamFunction : m_costOneFrameTwoCamFunctions)
+            for (auto m_costOneFrameTwoCamFunction : m_costOneFrameTwoCamFunctions)
             {
                 SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costOneFrameTwoCamFunction->get_curFeature();
 
+                int order_start_frame_idx = cur_cost_feature->OrderingId();
+                int order_dim = cur_cost_feature->get_localDimension();
+                auto jacobians = m_costOneFrameTwoCamFunction->Jacobians();
+                auto residual = m_costOneFrameTwoCamFunction->Residual();
+
+                for (int i = 0; i < jacobians.size(); i++)
+                {
+                    auto jacobians_i = jacobians[i];
+                    int index_i = order_start_frame_idx;
+                    int index_dim_i = order_dim;
+                    for (int j = i; j < jacobians.size(); j++)
+                    {
+                        auto jacobians_j = jacobians[j];
+                        int index_j = order_start_frame_idx;
+                        int index_dim_j = order_dim;
+                        MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                        H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                        if (j != i)
+                        {
+                            H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                        }
+                    }
+
+                    b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+                }
             }
         }
 
@@ -585,6 +610,47 @@ void BA_problem::makeHession()
             std::cout << "5555555555555" << std::endl;
             for(auto m_costTwoFrameTwoCamFunction : m_costTwoFrameTwoCamFunctions)
             {
+                SLAM_Solver::Pose::Ptr start_cost_pose = m_costTwoFrameTwoCamFunction->get_startPose();
+                SLAM_Solver::Pose::Ptr cur_cost_pose = m_costTwoFrameTwoCamFunction->get_curPose();
+                SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costTwoFrameTwoCamFunction->get_curFeature();
+
+                m_costTwoFrameTwoCamFunction->ComputeResidual();
+                auto jacobians = m_costTwoFrameTwoCamFunction->Jacobians();
+                auto residual = m_costTwoFrameTwoCamFunction->Residual();
+
+        int order_start_frame_idx = start_cost_pose->OrderingId();
+        int order_cur_frame_idx = cur_cost_pose->OrderingId();
+        int order_cur_feature_idx = cur_cost_feature->OrderingId();
+        std::vector<int> index_H;
+
+        index_H.push_back(order_start_frame_idx);
+        index_H.push_back(order_cur_frame_idx);
+        index_H.push_back(order_cur_feature_idx);
+        std::vector<int> index_dim;
+        index_dim.push_back(6);
+        index_dim.push_back(6);
+        index_dim.push_back(1);
+        for (int i = 0; i < jacobians.size(); i++)
+        {
+            auto jacobians_i = jacobians[i];
+            int index_i = index_H[i];
+            int index_dim_i = index_dim[i];
+            for (int j = i; j < jacobians.size(); j++)
+            {
+                auto jacobians_j = jacobians[j];
+                int index_j = index_H[j];
+                int index_dim_j = index_dim[j];
+                MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
+                H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                if (j != i)
+                {
+                    H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                }
+            }
+
+            b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+        }
                 
             }
         }
