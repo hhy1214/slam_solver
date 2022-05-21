@@ -2,7 +2,7 @@
 
 #common parameters
 #support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
-imu: 1       
+imu: 0       
 num_of_cam: 1
 stereo: 0
 
@@ -11,27 +11,34 @@ stereo: 0
 landmarktype: 0 
 
 camera0_imu_topic: "/camera1/imu"
-camera1_imu_topic: "/camera2/imu"
-camera2_imu_topic: "/camera3/imu"
+
 
 camera0_left_topic: "/camera1/infra1/image_rect_raw"
 camera0_right_topic: "/camera1/infra2/image_rect_raw"
-camera1_left_topic: "/camera2/infra1/image_rect_raw"
-camera1_right_topic: "/camera2/infra2/image_rect_raw"
-camera2_left_topic: "/camera3/infra1/image_rect_raw"
-camera2_right_topic: "/camera3/infra2/image_rect_raw"
+
 
 output_path: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/results"
 
 image_width: 640
 image_height: 480
 
-distortion_parameters:
+cam0_left_distortion_parameters:
    k1: 0
    k2: 0
    p1: 0
    p2: 0
-projection_parameters:
+cam0_left_projection_parameters:
+   fx: 383.1009216308594
+   fy: 383.1009216308594
+   cx: 320.5055236816406
+   cy: 237.51809692382812
+
+cam0_right_distortion_parameters:
+   k1: 0
+   k2: 0
+   p1: 0
+   p2: 0
+cam0_right_projection_parameters:
    fx: 383.1009216308594
    fy: 383.1009216308594
    cx: 320.5055236816406
@@ -42,17 +49,30 @@ imu_T_cam0_left: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [ 0.99997682,  0.00503933,  0.00457837, -0.0093734, 
-          -0.00506034,  0.99997667,  0.00458778,  0.00572269,
-          -0.00455514, -0.00461084,  0.999979,    0.02762095,
-           0.,          0.,          0.,          1.         ]
+   data: [0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
+           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
+           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
+           0, 0, 0, 1]
+
+# camera0 extrinsic param
+imu_T_cam0_right: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0.0125552670891, -0.999755099723, 0.0182237714554, -0.0198435579556,
+           0.999598781151, 0.0130119051815, 0.0251588363115, 0.0453689425024,
+          -0.0253898008918, 0.0179005838253, 0.999517347078, 0.00786212447038,
+          0, 0, 0, 1]
 
 #imu parameters       The more accurate parameters you provide, the better performance
-camera0_acc_n: 0.283546           # accelerometer measurement noise standard deviation. #0.2   0.04
-camera0_gyr_n: 0.0304607       # gyroscope measurement noise standard deviation.     #0.05  0.004
-camera0_acc_w: 6.8419802201779613e-04        # accelerometer bias random work noise standard deviation.  #0.002
-camera0_gyr_w: 1.6847425259467627e-05        # gyroscope bias random work noise standard deviation.     #4.0e-5
+camera0_acc_n: 0.258563568032           # accelerometer measurement noise standard deviation. #0.2   0.04
+camera0_gyr_n: 0.0377318721769       # gyroscope measurement noise standard deviation.     #0.05  0.004
+camera0_acc_w: 0.000466069600446       # accelerometer bias random work noise standard deviation.  #0.002
+camera0_gyr_w: 3.44012936063e-05        # gyroscope bias random work noise standard deviation.     #4.0e-5
 
 g_norm: 9.805         # gravity magnitude
 
-   
+# cam_pose_left_file: "/home/cl/workspace/project/intel/ba_solver_02/src/solver/src/test/inputData/pose.txt"
+cam_pose_left_file: "/home/cl/workspace/project/intel/ba_solver_02/src/solver/src/test/inputData/cam_pose_left.txt"
+point_file: "/home/cl/workspace/project/intel/ba_solver_02/src/solver/src/test/inputData/point.txt"
+imu_pose_file: "/home/cl/workspace/project/intel/ba_solver_02/src/solver/src/test/inputData/imu_pose_noise.txt"

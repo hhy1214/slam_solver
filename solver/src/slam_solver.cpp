@@ -47,13 +47,19 @@ bool BA_problem::addIMUParameterBlock(int ID, Eigen::Vector3d _Vs, Eigen::Vector
 
 void BA_problem::addStereoFeatureoneFtwoCResidual(int poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj)
 {
-    if(Parameters->STEREO)
+    if (parameters->STEREO)
     {
         std::lock_guard<std::mutex> lock(mutex_map);
         costOneFrameTwoCamFunction::Ptr costFuti(new SLAM_Solver::costOneFrameTwoCamFunction(pti, ptj));
 
+        ///@@@此处需注意，原本的观测为单目观测
+        ///@@@由于此时为双目观测，需要将其中featureID中出现的双目观测代码进行
+        ///@@@修改，同时此地的添加观测信息也需要进行修改
+        ///@@@此地未添加观测信息，需要之后自行添加
+
         auto it1 = m_Poses.find(poseIdx);
         auto posei_ = it1->second;
+        int pose_id = posei_->get_ID();
         auto it2 = m_FeatureIDs.find(featureIdx);
         auto featurei_ = it2->second;
         costFuti->set_curPose(posei_);
@@ -62,8 +68,9 @@ void BA_problem::addStereoFeatureoneFtwoCResidual(int poseIdx, int featureIdx, E
         //////@@@@@@@@@@@添加外参
 
         m_costOneFrameTwoCamFunctions.push_back(costFuti);
-
-    } else {
+    }
+    else
+    {
         std::cout << "设定为单目，试图加入双目！！！！！！！！！！！" << std::endl;
     }
 }
@@ -102,43 +109,118 @@ void BA_problem::addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int
     HashPoseIdTocostFunction.insert(std::pair<int, costFunction::Ptr>(cur_poseIdx, costFuti));
 }
 
+void BA_problem::addStereoFeaturetwoFtwoCResidual(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj)
+{
+    if (parameters->STEREO)
+    {
+        std::lock_guard<std::mutex> lock(mutex_map);
+        costTwoFrameTwoCamFunction::Ptr costFuti(new SLAM_Solver::costTwoFrameTwoCamFunction(pti, ptj));
+        // LOG(INFO) << "addFeatureResidualBlock started!!!!!";
+
+        //将点的观测进行构造，即对FeatureID::Ptr中的FeatureMeasure进行构造
+        auto it = m_FeatureIDs.find(featureIdx);
+        auto featureid_ = it->second;
+
+        ///@@@此处需注意，原本的观测为单目观测
+        ///@@@由于此时为双目观测，需要将其中featureID中出现的双目观测代码进行
+        ///@@@修改，同时此地的添加观测信息也需要进行修改
+        // featureid_->set_startframe(start_poseIdx);
+        // featureid_->addFeatureMeasure(start_poseIdx, pti);
+        // featureid_->addFeatureMeasure(cur_poseIdx, ptj);
+        // LOG(INFO) << "featureid_ succeeded!!!!!";
+
+        //将观测投入到costFunction类中，将残差进行构建并保存
+        auto it1 = m_Poses.find(start_poseIdx);
+        auto it2 = m_Poses.find(cur_poseIdx);
+        auto posei_ = it1->second;
+        auto posej_ = it2->second;
+        costFuti->set_startPose(posei_);
+        costFuti->set_curPose(posej_);
+        costFuti->set_curFeature(featureid_);
+        ///@@@此处需注意
+        ///@@@此时此地的添加左右目信息也需要进行修改
+        ///@@@costFuti->SetLeftTranslationImuFromCamera（）???
+
+        HashPoseIdTocostTwoFrameTwoCamFunction.insert(std::pair<int, costTwoFrameTwoCamFunction::Ptr>(start_poseIdx, costFuti));
+        HashPoseIdTocostTwoFrameTwoCamFunction.insert(std::pair<int, costTwoFrameTwoCamFunction::Ptr>(cur_poseIdx, costFuti));
+
+        // LOG(INFO) << "posei_ posej_ succeeded!!!!!";
+    }
+    else
+    {
+        std::cout << "设定为单目，试图加入双目！！！！！！！！！！！" << std::endl;
+    }
+}
+
 void BA_problem::addIMUResidualBlock(int lastposeIdx, int curposeIdx, IntegrationBase *_pre_integration)
 {
-    std::lock_guard<std::mutex> lock(mutex_map);
-    SLAM_Solver::costIMUFunction::Ptr edgeIMU(new SLAM_Solver::costIMUFunction(_pre_integration));
-    // LOG(INFO) << "addIMUResidualBlock started!!!!!";
+    if (parameters->USE_IMU)
+    {
+        std::lock_guard<std::mutex> lock(mutex_map);
+        SLAM_Solver::costIMUFunction::Ptr edgeIMU(new SLAM_Solver::costIMUFunction(_pre_integration));
+        // LOG(INFO) << "addIMUResidualBlock started!!!!!";
 
-    auto it1 = m_Poses.find(lastposeIdx);
-    auto it2 = m_Poses.find(curposeIdx);
+        auto it1 = m_Poses.find(lastposeIdx);
+        auto it2 = m_Poses.find(curposeIdx);
 
-    auto it1_motion = m_Motions.find(lastposeIdx);
-    auto it2_motion = m_Motions.find(curposeIdx);
+        auto it1_motion = m_Motions.find(lastposeIdx);
+        auto it2_motion = m_Motions.find(curposeIdx);
 
-    edgeIMU->set_startPose(it1->second);
-    edgeIMU->set_startMotion(it1_motion->second);
+        edgeIMU->set_startPose(it1->second);
+        edgeIMU->set_startMotion(it1_motion->second);
 
-    edgeIMU->set_curPose(it2->second);
-    edgeIMU->set_curMotion(it2_motion->second);
-    edgeIMU->computeResidual();
+        edgeIMU->set_curPose(it2->second);
+        edgeIMU->set_curMotion(it2_motion->second);
+        edgeIMU->computeResidual();
 
-    m_costIMUFunctions.push_back(edgeIMU);
+        m_costIMUFunctions.push_back(edgeIMU);
 
-    HashPoseIdTocostIMUFunction.insert(std::pair<int, costIMUFunction::Ptr>(lastposeIdx, edgeIMU));
-    HashPoseIdTocostIMUFunction.insert(std::pair<int, costIMUFunction::Ptr>(curposeIdx, edgeIMU));
+        HashPoseIdTocostIMUFunction.insert(std::pair<int, costIMUFunction::Ptr>(lastposeIdx, edgeIMU));
+        HashPoseIdTocostIMUFunction.insert(std::pair<int, costIMUFunction::Ptr>(curposeIdx, edgeIMU));
+    }
+    else
+    {
+        std::cout << "设定为无IMU，试图加入IMU！！！！！！！！！！！" << std::endl;
+    }
 }
 
 void BA_problem::initialStructure(std::string config_yaml)
 {
     LOG(INFO) << "BA_problem Initialization started!!!!!";
-    parameters::Ptr parameters_ptr(new SLAM_Solver::parameters());
+    Parameters::Ptr parameters_ptr(new SLAM_Solver::Parameters());
     parameters_ptr->set_parameters(config_yaml);
     int i = parameters_ptr->CAM_TIC.size();
-    Parameters = parameters_ptr;
-    std::cout << "输出的IMU到相机的外参： " << Parameters->CAM_TIC[0] << std::endl;
-    std::cout << "输出的是否为双目： " << Parameters->STEREO << std::endl;
-    std::cout << "输出的是否有IMU： " << Parameters->USE_IMU << std::endl;
+    parameters = parameters_ptr;
+    // std::cout << "输出的IMU到相机的外参： " << Parameters->CAM_TIC[0] << std::endl;
+    // std::cout << "输出的是否为双目： " << Parameters->STEREO << std::endl;
+    // std::cout << "输出的是否有IMU： " << Parameters->USE_IMU << std::endl;
+
+    RIC0 = Eigen::Matrix3d::Identity();
+    tic0 = Eigen::Vector3d::Zero();
+    qic0 = Eigen::Quaterniond(RIC0);
+
+    if (parameters->USE_IMU)
+    {
+        TIC0 = parameters->CAM_TIC[0];
+        RIC0 = TIC0.block<3, 3>(0, 0);
+        tic0 = TIC0.block<3, 1>(0, 3);
+        qic0 = Eigen::Quaterniond(RIC0);
+        LOG(INFO) << "STEREO";
+        if (parameters->STEREO)
+        {
+            TIC1 = parameters->CAM_TIC[1];
+            RIC1 = TIC1.block<3, 3>(0, 0);
+            tic1 = TIC1.block<3, 1>(0, 3);
+            qic1 = Eigen::Quaterniond(RIC1);
+        }
+    }
     m_Poses.clear();
     m_FeatureIDs.clear();
+    m_Motions.clear();
+    m_costFunctions.clear();
+    m_costIMUFunctions.clear();
+    m_costOneFrameTwoCamFunctions.clear();
+    m_costTwoFrameTwoCamFunctions.clear();
     LOG(INFO) << "BA_problem Initialization succeeded!!!!!";
 }
 
@@ -172,7 +254,7 @@ std::vector<costFunction::Ptr> BA_problem::get_all_costFunction()
 void BA_problem::solve()
 {
     setOrdering();
-    
+
     makeHession();
 
     ComputeLambdaInitLM();
@@ -196,6 +278,7 @@ void BA_problem::solve()
             if (delta_x_.squaredNorm() <= 1e-6 || false_cnt > 10)
             {
                 stop = true;
+                LOG(INFO) << "!!!!!!!!!!!! 求解优化完成  !!!!!!！！！";
                 break;
             }
             // 更新状态量
@@ -243,7 +326,7 @@ void BA_problem::RollbackStates()
         VecX delta = delta_x_.segment(idx, dim);
         m_Pose.second->Plus(-delta);
     }
-    if (Parameters->USE_IMU)
+    if (parameters->USE_IMU)
     {
         if (m_Motions.size() != 0)
         {
@@ -279,6 +362,14 @@ bool BA_problem::IsGoodStepInLM()
         m_costFunction->ComputeResidual();
         tempChi += m_costFunction->Chi2();
     }
+    if (parameters->USE_IMU)
+    {
+        for (auto m_costIMUFunction : m_costIMUFunctions)
+        {
+            m_costIMUFunction->computeResidual();
+            tempChi += m_costIMUFunction->Chi2();
+        }
+    }
 
     double rho = (currentChi_ - tempChi) / scale;
     if (rho > 0 && std::isfinite(tempChi)) // last step was good, 误差在下降
@@ -301,6 +392,7 @@ bool BA_problem::IsGoodStepInLM()
 
 void BA_problem::UpdateStates()
 {
+    LOG(INFO) << " 开始更新变量 ！！！";
     for (auto m_Pose : m_Poses)
     {
         ulong idx = m_Pose.second->OrderingId();
@@ -308,14 +400,14 @@ void BA_problem::UpdateStates()
         VecX delta = delta_x_.segment(idx, dim);
         m_Pose.second->Plus(delta);
     }
-    if (Parameters->USE_IMU)
+    if (parameters->USE_IMU)
     {
         if (m_Motions.size() != 0)
         {
             for (auto m_Motion : m_Motions)
             {
                 ulong idx_motion = m_Motion.second->OrderingId();
-                ulong dim = 6;
+                ulong dim = 9;
                 VecX delta = delta_x_.segment(idx_motion, dim);
                 m_Motion.second->Plus(delta);
             }
@@ -335,6 +427,12 @@ void BA_problem::SolveLinearSystem()
     int reserve_size, marg_size;
     reserve_size = m_Poses.size() * 6;
     marg_size = m_FeatureIDs.size() * 1;
+
+    if (parameters->USE_IMU)
+    {
+        reserve_size = m_Poses.size() * 15;
+        marg_size = m_FeatureIDs.size() * 1;
+    }
 
     // TODO:: home work. 完成矩阵块取值，Hmm，Hpm，Hmp，bpp，bmm  //>>??
     MatXX Hmm = Hessian_.block(reserve_size, reserve_size, marg_size, marg_size); // 对应landmark
@@ -370,7 +468,7 @@ void BA_problem::SolveLinearSystem()
     // delta_x_pp = PCGSolver(H_pp_schur_, b_pp_schur_, n);  // pcg 求解
     delta_x_pp = H_pp_schur_.ldlt().solve(b_pp_schur_);
     delta_x_.head(reserve_size) = delta_x_pp;
-    // LOG(INFO) << " PCG 求解完成 ！！！" ;
+    LOG(INFO) << " 位姿 求解迭代完成 ！！！";
     // std::cout << "delta_x_: " << delta_x_.transpose() << std::endl;  // ??? 结果相差
     // std::cout << "delta_x_pp: " << delta_x_pp.transpose() << std::endl;  // ??? 结果相差
 
@@ -378,6 +476,7 @@ void BA_problem::SolveLinearSystem()
     VecX delta_x_ll(marg_size);
     delta_x_ll = Hmm_inv * (bmm - Hmp * delta_x_pp); //?
     delta_x_.tail(marg_size) = delta_x_ll;
+    LOG(INFO) << " 线性矩阵3D点 求解迭代完成 ！！！";
     // std::cout << "delta_x_: " << delta_x_.transpose() << std::endl;  // ??? 结果相差
     // delta_x_ll: -0.0058278 -0.0335995
 }
@@ -426,6 +525,13 @@ void BA_problem::ComputeLambdaInitLM()
     {
         currentChi_ += m_costFunction->Chi2();
     }
+    if (parameters->USE_IMU)
+    {
+        for (auto m_costIMUFunction : m_costIMUFunctions)
+        {
+            currentChi_ += m_costIMUFunction->Chi2();
+        }
+    }
     LOG(INFO) << "currentChi_: " << currentChi_;
 
     stopThresholdLM_ = 1e-6 * currentChi_; // 迭代条件为 误差下降 1e-6 倍
@@ -460,12 +566,15 @@ void BA_problem::setOrdering()
             ordering_poses_ += it->second->get_localDimension();
         }
 
-        auto iter = m_Motions.find(PoseIdxs[i]);
-        if (iter != m_Motions.end())
+        if (parameters->USE_IMU)
         {
-            ordering_generic_ += iter->second->get_localDimension();
-            iter->second->SetOrderingId(ordering_poses_);
-            ordering_poses_ += iter->second->get_localDimension();
+            auto iter = m_Motions.find(PoseIdxs[i]);
+            if (iter != m_Motions.end())
+            {
+                ordering_generic_ += iter->second->get_localDimension();
+                iter->second->SetOrderingId(ordering_poses_);
+                ordering_poses_ += iter->second->get_localDimension();
+            }
         }
     }
 
@@ -484,13 +593,14 @@ void BA_problem::setOrdering()
 
 void BA_problem::makeHession()
 {
-    int size, pose_size, feature_size;
-    pose_size = m_Poses.size();
-    feature_size = m_FeatureIDs.size();
-    size = pose_size * 6 + feature_size;
-    int H_pose_size = pose_size * 6;
+    // int size, pose_size, feature_size;
+    // pose_size = m_Poses.size();
+    // feature_size = m_FeatureIDs.size();
+    // size = pose_size * 6 + feature_size;
+    // int H_pose_size = pose_size * 6;
 
-    // int size = ordering_generic_;
+    int size = ordering_generic_;
+    std::cout << "H矩阵大小： " << size << std::endl;
 
     // 直接构造大的 H 矩阵
     MatXX H(MatXX::Zero(size, size));
@@ -525,11 +635,9 @@ void BA_problem::makeHession()
         // std::cout << "构造残差创建的每一个帧索引 index_start: " << index_start << " index_cur: " << index_cur << std::endl;
         // std::cout << "构造残差创建的每一个图像索引 index_feature: " << index_feature << std::endl;
 
-
-
-        int index_H_posei = index_start * 6;
-        int index_H_posej = index_cur * 6;
-        int index_H_feature = H_pose_size + index_feature;
+        // int index_H_posei = index_start * 6;
+        // int index_H_posej = index_cur * 6;
+        // int index_H_feature = H_pose_size + index_feature;
         std::vector<int> index_H;
         // index_H.push_back(index_H_feature);
         // index_H.push_back(index_H_posei);
@@ -565,14 +673,11 @@ void BA_problem::makeHession()
         }
     }
     LOG(INFO) << "BA_problem make 视觉左目 Hession succeeded!!!!!";
-    std::cout << "ooooooooooooooo" << Parameters->STEREO << std::endl;
 
-    if (Parameters->STEREO)
+    if (parameters->STEREO)
     {
-        std::cout << "3333333333" << std::endl;
         if (m_costOneFrameTwoCamFunctions.size() != 0)
         {
-            std::cout << "444444444444444444" << std::endl;
             for (auto m_costOneFrameTwoCamFunction : m_costOneFrameTwoCamFunctions)
             {
                 SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costOneFrameTwoCamFunction->get_curFeature();
@@ -608,7 +713,7 @@ void BA_problem::makeHession()
         if (m_costTwoFrameTwoCamFunctions.size() != 0)
         {
             std::cout << "5555555555555" << std::endl;
-            for(auto m_costTwoFrameTwoCamFunction : m_costTwoFrameTwoCamFunctions)
+            for (auto m_costTwoFrameTwoCamFunction : m_costTwoFrameTwoCamFunctions)
             {
                 SLAM_Solver::Pose::Ptr start_cost_pose = m_costTwoFrameTwoCamFunction->get_startPose();
                 SLAM_Solver::Pose::Ptr cur_cost_pose = m_costTwoFrameTwoCamFunction->get_curPose();
@@ -618,50 +723,48 @@ void BA_problem::makeHession()
                 auto jacobians = m_costTwoFrameTwoCamFunction->Jacobians();
                 auto residual = m_costTwoFrameTwoCamFunction->Residual();
 
-        int order_start_frame_idx = start_cost_pose->OrderingId();
-        int order_cur_frame_idx = cur_cost_pose->OrderingId();
-        int order_cur_feature_idx = cur_cost_feature->OrderingId();
-        std::vector<int> index_H;
+                int order_start_frame_idx = start_cost_pose->OrderingId();
+                int order_cur_frame_idx = cur_cost_pose->OrderingId();
+                int order_cur_feature_idx = cur_cost_feature->OrderingId();
+                std::vector<int> index_H;
 
-        index_H.push_back(order_start_frame_idx);
-        index_H.push_back(order_cur_frame_idx);
-        index_H.push_back(order_cur_feature_idx);
-        std::vector<int> index_dim;
-        index_dim.push_back(6);
-        index_dim.push_back(6);
-        index_dim.push_back(1);
-        for (int i = 0; i < jacobians.size(); i++)
-        {
-            auto jacobians_i = jacobians[i];
-            int index_i = index_H[i];
-            int index_dim_i = index_dim[i];
-            for (int j = i; j < jacobians.size(); j++)
-            {
-                auto jacobians_j = jacobians[j];
-                int index_j = index_H[j];
-                int index_dim_j = index_dim[j];
-                MatXX hessian = jacobians_i.transpose() * jacobians_j;
-                // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
-                H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
-                if (j != i)
+                index_H.push_back(order_start_frame_idx);
+                index_H.push_back(order_cur_frame_idx);
+                index_H.push_back(order_cur_feature_idx);
+                std::vector<int> index_dim;
+                index_dim.push_back(6);
+                index_dim.push_back(6);
+                index_dim.push_back(1);
+                for (int i = 0; i < jacobians.size(); i++)
                 {
-                    H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
-                }
-            }
+                    auto jacobians_i = jacobians[i];
+                    int index_i = index_H[i];
+                    int index_dim_i = index_dim[i];
+                    for (int j = i; j < jacobians.size(); j++)
+                    {
+                        auto jacobians_j = jacobians[j];
+                        int index_j = index_H[j];
+                        int index_dim_j = index_dim[j];
+                        MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                        // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
+                        H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                        if (j != i)
+                        {
+                            H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                        }
+                    }
 
-            b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
-        }
-                
+                    b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+                }
             }
         }
     }
 
-    if (Parameters->USE_IMU)
+    if (parameters->USE_IMU)
     {
-        std::cout << "11111111111" << std::endl;
+        LOG(INFO) << "H矩阵开始计算对应的IMU约束信息!!!!!";
         if (m_costIMUFunctions.size() != 0)
         {
-            std::cout << "22222222" << std::endl;
             for (auto m_costIMUFunction : m_costIMUFunctions)
             {
                 SLAM_Solver::Pose::Ptr start_cost_pose = m_costIMUFunction->get_startPose();
@@ -745,12 +848,6 @@ void BA_problem::getSolveResults()
         Eigen::Vector3d t1 = m_Pose->get_translation();
         std::cout << std::setprecision(20) << start_frameIdx << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
                   << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
-        // int start_frameIdx = m_Pose.second->get_ID();
-        // Eigen::Quaterniond q1 = m_Pose->get_rotate();
-        // Eigen::Vector3d t1 = m_Pose->get_translation();
-        // std::cout << std::setprecision(20) << start_frameIdx << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
-        //            << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
-        // std::cout << "优化第 " << start_frameIdx << "帧的位姿R为： " << m_Q.x() << "y: " << m_Q.y() << "z: " << m_Q.z() << "w: " << m_Q.w() << std::endl;
     }
 
     std::vector<FeatureID::Ptr> fea_res;
@@ -794,7 +891,8 @@ std::vector<int> BA_problem::get_all_Poseidx()
 {
     std::lock_guard<std::mutex> lock(mutex_map);
     std::vector<int> res;
-    for (int i = 0; i < PoseIdxs.size(); i++) {
+    for (int i = 0; i < PoseIdxs.size(); i++)
+    {
         res.push_back(PoseIdxs[i]);
         std::cout << "push进vector中的第" << i << "ge  data: " << PoseIdxs[i] << std::endl;
     }
@@ -819,7 +917,6 @@ std::vector<FeatureID::Ptr> BA_problem::get_all_FeatureID()
 
 void BA_problem::setMargin(int poseIdx)
 {
-
     setOrdering();
 
     /// pose and IMU
@@ -827,10 +924,13 @@ void BA_problem::setMargin(int poseIdx)
     /// pose_dim++
     int pose_dim;
     pose_dim = m_Poses.size() * 6;
-    pose_dim += m_Motions.size() * 9;
+    pose_dim += 9 * 2;
 
     auto range = HashPoseIdTocostFunction.equal_range(poseIdx);
     std::vector<costFunction::Ptr> marg_costFunction;
+
+    // auto range = HashPoseIdTocostFunction.equal_range(poseIdx);
+    // std::vector<costFunction::Ptr> marg_costFunction;
     for (auto iter = range.first; iter != range.second; ++iter)
     {
 
@@ -1005,12 +1105,11 @@ void BA_problem::setMargin(int poseIdx)
 
     double eps = 1e-8;
     int m2 = marg_dim;
-    int n2 = reserve_size - marg_dim;   // marg pose
+    int n2 = reserve_size - marg_dim; // marg pose
     Eigen::MatrixXd Amm = 0.5 * (H_marg.block(n2, n2, m2, m2) + H_marg.block(n2, n2, m2, m2).transpose());
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(Amm);
-    Eigen::MatrixXd Amm_inv = saes.eigenvectors() * Eigen::VectorXd(
-            (saes.eigenvalues().array() > eps).select(saes.eigenvalues().array().inverse(), 0)).asDiagonal() *
+    Eigen::MatrixXd Amm_inv = saes.eigenvectors() * Eigen::VectorXd((saes.eigenvalues().array() > eps).select(saes.eigenvalues().array().inverse(), 0)).asDiagonal() *
                               saes.eigenvectors().transpose();
 
     Eigen::VectorXd bmm2 = b_marg.segment(n2, m2);
@@ -1025,7 +1124,7 @@ void BA_problem::setMargin(int poseIdx)
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(H_prior_);
     Eigen::VectorXd S = Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array(), 0));
     Eigen::VectorXd S_inv = Eigen::VectorXd(
-            (saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array().inverse(), 0));
+        (saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array().inverse(), 0));
 
     Eigen::VectorXd S_sqrt = S.cwiseSqrt();
     Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
@@ -1034,7 +1133,7 @@ void BA_problem::setMargin(int poseIdx)
 
     MatXX J = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     H_prior_ = J.transpose() * J;
-    MatXX tmp_h = MatXX( (H_prior_.array().abs() > 1e-9).select(H_prior_.array(),0) );
+    MatXX tmp_h = MatXX((H_prior_.array().abs() > 1e-9).select(H_prior_.array(), 0));
     H_prior_ = tmp_h;
 
     // std::cout << "my marg b prior: " <<b_prior_.rows()<<" norm: "<< b_prior_.norm() << std::endl;
@@ -1044,7 +1143,8 @@ void BA_problem::setMargin(int poseIdx)
     ///@@@@@
 }
 
-void BA_problem::test() {
+void BA_problem::test()
+{
     setOrdering();
     for (auto m_Pose : m_Poses)
     {
@@ -1069,5 +1169,4 @@ void BA_problem::test() {
         // VecX delta = delta_x_.segment(index_feature, dim);
         // m_FeatureID.second->Plus(delta);
     }
-
 }

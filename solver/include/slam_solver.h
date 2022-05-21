@@ -93,7 +93,13 @@ private:
     void RollbackStates();
 
     //对应的各种配置参数
-    parameters::Ptr Parameters; // 从yaml文件中读取的参数
+    Parameters::Ptr parameters; // 从yaml文件中读取的参数
+    Eigen::Vector3d tic0, tic1;
+    Eigen::Quaterniond qic0, qic1;
+    Eigen::Matrix4d TIC0, TIC1;
+    Eigen::Matrix3d RIC0, RIC1;
+
+    
     std::vector<double> cameraIntrinsics, rightCameraIntrinsics;    // 左右目相机内参
     bool isIncremental;                                             // 是否增量化
     int interatorNum;                                               // 迭代次数
@@ -108,10 +114,10 @@ private:
     std::unordered_multimap<int, costFunction::Ptr> HashPoseIdTocostFunction;
     std::vector<costFunction::Ptr> m_costFunctions;                 // 残差项，对应视觉残差
 
-    std::unordered_multimap<int, costFunction::Ptr> HashPoseIdTocostOneFrameTwoCamFunction;
+    std::unordered_multimap<int, costOneFrameTwoCamFunction::Ptr> HashPoseIdTocostOneFrameTwoCamFunction;
     std::vector<costOneFrameTwoCamFunction::Ptr> m_costOneFrameTwoCamFunctions;                 // 残差项，对应视觉残差
 
-    std::unordered_multimap<int, costFunction::Ptr> HashPoseIdTocostTwoFrameTwoCamFunction;
+    std::unordered_multimap<int, costTwoFrameTwoCamFunction::Ptr> HashPoseIdTocostTwoFrameTwoCamFunction;
     std::vector<costTwoFrameTwoCamFunction::Ptr> m_costTwoFrameTwoCamFunctions;                 // 残差项，对应视觉残差
 
     std::unordered_multimap<int, costIMUFunction::Ptr> HashPoseIdTocostIMUFunction;

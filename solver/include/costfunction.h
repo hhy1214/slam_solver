@@ -9,6 +9,7 @@
 #include "feature.h"
 #include "eigen_type.h"
 #include "utility.h"
+#include "parameters.h"
 
 namespace SLAM_Solver
 {
@@ -66,7 +67,9 @@ namespace SLAM_Solver
             Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
 
             double dep_j = pts_camera_j.z();
+            Eigen::Matrix2d sqrt_info = FOCAL_LENGTH / 1.5 * Eigen::Matrix2d::Identity();
             residual_ = (pts_camera_j / dep_j).head<2>() - pts_j_.head<2>(); /// J^t * J * delta_x = - J^t * r
+            residual_ = sqrt_info * residual_;
             //    residual_ = information_ * residual_;   // remove information here, we multi information matrix in problem solver
             // std::cout << "residual_: " << std::endl
             //           << residual_ << std::endl;
@@ -77,6 +80,7 @@ namespace SLAM_Solver
             Mat23 reduce(2, 3);
             reduce << 1. / dep_j, 0, -pts_camera_j(0) / (dep_j * dep_j),
                 0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
+            reduce = sqrt_info * reduce;
             //    reduce = information_ * reduce;
             // std::cout << "reduce: " << std::endl
             //           << reduce << std::endl;

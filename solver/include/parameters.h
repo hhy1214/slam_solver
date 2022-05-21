@@ -14,32 +14,30 @@
 
 const double FOCAL_LENGTH = 460.0;
 
+enum SIZE_PARAMETERIZATION
+{
+    SIZE_POSE = 7,
+    SIZE_SPEEDBIAS = 9,
+    SIZE_FEATURE = 1
+};
+enum StateOrder
+{
+    O_P = 0,
+    O_R = 3,
+    O_V = 6,
+    O_BA = 9,
+    O_BG = 12
+};
+enum NoiseOrder
+{
+    O_AN = 0,
+    O_GN = 3,
+    O_AW = 6,
+    O_GW = 9
+};
+
 namespace SLAM_Solver
 {
-    enum SIZE_PARAMETERIZATION
-    {
-        SIZE_POSE = 7,
-        SIZE_SPEEDBIAS = 9,
-        SIZE_FEATURE = 1
-    };
-
-    enum StateOrder
-    {
-        O_P = 0,
-        O_R = 3,
-        O_V = 6,
-        O_BA = 9,
-        O_BG = 12
-    };
-
-    enum NoiseOrder
-    {
-        O_AN = 0,
-        O_GN = 3,
-        O_AW = 6,
-        O_GW = 9
-    };
-
     struct Camera
     {
         std::string cameraName;
@@ -55,16 +53,14 @@ namespace SLAM_Solver
         double cy;
     };
 
-    class parameters
+    class Parameters
     {
     public:
-        POINTER_TYPEDEFS(parameters);
-        parameters() : initinal(0){};
+        POINTER_TYPEDEFS(Parameters);
         void set_parameters(std::string config_yaml);
 
     public:
-        int initinal;
-        int NUMCAM;
+
         int USE_IMU;
         int NUM_OF_CAM;
         int STEREO;
@@ -72,12 +68,12 @@ namespace SLAM_Solver
         int LARDMARK_TYPE;
 
         //camera parameters
-        std::vector<Camera> Cameras;
+        std::vector<Camera> Cameras;                //相机内参
 
         // image and imu topic
-        std::vector<std::string> CAMERA_IMU_TOPIC;
-        std::vector<Eigen::Matrix4d> CAM_TIC;
-        std::vector<std::string> CAM_NAMES;
+        std::vector<std::string> CAMERA_IMU_TOPIC;  //IMU话题
+        std::vector<Eigen::Matrix4d> CAM_TIC;       //相机到IMU外参
+        std::vector<std::string> CAM_NAMES;         
         // imu noise
         double ACC_N, ACC_W, GYR_N, GYR_W;
     };
