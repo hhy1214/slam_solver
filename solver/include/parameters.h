@@ -13,7 +13,8 @@
 #include <map>
 
 const double FOCAL_LENGTH = 460.0;
-
+extern double ACC_N, ACC_W, GYR_N, GYR_W;
+extern Eigen::Vector3d G;
 enum SIZE_PARAMETERIZATION
 {
     SIZE_POSE = 7,

@@ -21,22 +21,15 @@ namespace SLAM_Solver
             sum_dt{0.0}, delta_p{Eigen::Vector3d::Zero()}, delta_q{Eigen::Quaterniond::Identity()}, delta_v{Eigen::Vector3d::Zero()}
 
         {
-            double acc_n_ = 0.08 , gyr_n_ = 0.004, acc_w_ = 0.00004, gyr_w_ = 2.0e-6;
-        noise = Eigen::Matrix<double, 18, 18>::Zero();
-        noise.block<3, 3>(0, 0) =  (acc_n_ * acc_n_) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(3, 3) =  (gyr_n_ * gyr_n_) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(6, 6) =  (acc_n_ * acc_n_) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(9, 9) =  (gyr_n_ * gyr_n_) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(12, 12) =  (acc_w_ * acc_w_) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(15, 15) =  (gyr_w_ * gyr_w_) * Eigen::Matrix3d::Identity();
-            // noise = Eigen::Matrix<double, 18, 18>::Zero();
-            // noise.block<3, 3>(0, 0) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
-            // noise.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
-            // noise.block<3, 3>(6, 6) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
-            // noise.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
-            // noise.block<3, 3>(12, 12) =  (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
-            // noise.block<3, 3>(15, 15) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
-        }
+            noise = Eigen::Matrix<double, 18, 18>::Zero();
+            noise.block<3, 3>(0, 0) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
+            noise.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
+            noise.block<3, 3>(6, 6) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
+            noise.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
+            noise.block<3, 3>(12, 12) =  (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
+            noise.block<3, 3>(15, 15) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
+        
+            }
 
         void push_back(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr)
         {

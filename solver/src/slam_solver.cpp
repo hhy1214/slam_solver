@@ -308,7 +308,7 @@ void BA_problem::solve()
         }
         iter++;
 
-        if (sqrt(currentChi_) <= stopThresholdLM_)
+        if (last_chi_ - currentChi_ < 1e-5)
         {
             std::cout << "sqrt(currentChi_) <= stopThresholdLM_" << std::endl;
             stop = true;
@@ -430,7 +430,8 @@ void BA_problem::SolveLinearSystem()
 
     if (parameters->USE_IMU)
     {
-        reserve_size = m_Poses.size() * 15;
+        reserve_size = m_Poses.size() * 6;
+        reserve_size += m_Motions.size() * 9;
         marg_size = m_FeatureIDs.size() * 1;
     }
 
