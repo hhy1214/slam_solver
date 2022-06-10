@@ -55,8 +55,8 @@ public:
     bool addIMUParameterBlock(int ID, Eigen::Vector3d _Vs, Eigen::Vector3d _Ba, Eigen::Vector3d _Bg);
     void addIMUResidualBlock(int lastposeIdx, int curposeIdx, IntegrationBase *_pre_integration);                    // 添加IMU残差块 IntegrationBase *_pre_integration 
     void addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj);  // 添加视觉残差块
-    void addStereoFeatureoneFtwoCResidual(int poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj);  // 添加双目视觉残差块
-    void addStereoFeaturetwoFtwoCResidual(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj);  // 添加双目视觉残差块
+     void addStereoFeatureOneFtwoCResidual(int poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj);  // 添加双目视觉残差块
+    void addStereoFeatureTwoFtwoCResidual(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj);  // 添加双目视觉残差块
     // void addStereoFeatureResidualBlock(int featureIdx, int numOfMeasure);
     void solve();                                                                 // 优化求解
     void test();
@@ -122,7 +122,7 @@ private:
 
     std::unordered_multimap<int, costIMUFunction::Ptr> HashPoseIdTocostIMUFunction;
     std::vector<costIMUFunction::Ptr> m_costIMUFunctions;                 // 残差项，对应IMU残差
-
+ 
     SolverType solverType;
 
     std::mutex mutex_map;

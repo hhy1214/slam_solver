@@ -45,7 +45,7 @@ bool BA_problem::addIMUParameterBlock(int ID, Eigen::Vector3d _Vs, Eigen::Vector
     return res.second;
 }
 
-void BA_problem::addStereoFeatureoneFtwoCResidual(int poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj)
+void BA_problem::addStereoFeatureOneFtwoCResidual(int poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj)
 {
     if (parameters->STEREO)
     {
@@ -59,15 +59,22 @@ void BA_problem::addStereoFeatureoneFtwoCResidual(int poseIdx, int featureIdx, E
 
         auto it1 = m_Poses.find(poseIdx);
         auto posei_ = it1->second;
-        int pose_id = posei_->get_ID();
         auto it2 = m_FeatureIDs.find(featureIdx);
         auto featurei_ = it2->second;
+        featurei_->addFeatureMeasure(poseIdx, pti);
+        featurei_->addRightFeatureMeasure(poseIdx, ptj);
+
         costFuti->set_curPose(posei_);
         costFuti->set_curFeature(featurei_);
+
+        costFuti->SetLeftTranslationImuFromCamera(qic0, tic0);
+        costFuti->SetRightTranslationImuFromCamera(qic1, tic1);
 
         //////@@@@@@@@@@@添加外参
 
         m_costOneFrameTwoCamFunctions.push_back(costFuti);
+
+        HashPoseIdTocostOneFrameTwoCamFunction.insert(std::pair<int, costOneFrameTwoCamFunction::Ptr>(poseIdx, costFuti));
     }
     else
     {
@@ -109,7 +116,7 @@ void BA_problem::addFeatureResidualBlock(int start_poseIdx, int cur_poseIdx, int
     HashPoseIdTocostFunction.insert(std::pair<int, costFunction::Ptr>(cur_poseIdx, costFuti));
 }
 
-void BA_problem::addStereoFeaturetwoFtwoCResidual(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj)
+void BA_problem::addStereoFeatureTwoFtwoCResidual(int start_poseIdx, int cur_poseIdx, int featureIdx, Eigen::Vector3d pti, Eigen::Vector3d ptj)
 {
     if (parameters->STEREO)
     {
@@ -117,19 +124,11 @@ void BA_problem::addStereoFeaturetwoFtwoCResidual(int start_poseIdx, int cur_pos
         costTwoFrameTwoCamFunction::Ptr costFuti(new SLAM_Solver::costTwoFrameTwoCamFunction(pti, ptj));
         // LOG(INFO) << "addFeatureResidualBlock started!!!!!";
 
-        //将点的观测进行构造，即对FeatureID::Ptr中的FeatureMeasure进行构造
         auto it = m_FeatureIDs.find(featureIdx);
         auto featureid_ = it->second;
+        featureid_->addFeatureMeasure(start_poseIdx, pti);
+        featureid_->addRightFeatureMeasure(cur_poseIdx, ptj);
 
-        ///@@@此处需注意，原本的观测为单目观测
-        ///@@@由于此时为双目观测，需要将其中featureID中出现的双目观测代码进行
-        ///@@@修改，同时此地的添加观测信息也需要进行修改
-        // featureid_->set_startframe(start_poseIdx);
-        // featureid_->addFeatureMeasure(start_poseIdx, pti);
-        // featureid_->addFeatureMeasure(cur_poseIdx, ptj);
-        // LOG(INFO) << "featureid_ succeeded!!!!!";
-
-        //将观测投入到costFunction类中，将残差进行构建并保存
         auto it1 = m_Poses.find(start_poseIdx);
         auto it2 = m_Poses.find(cur_poseIdx);
         auto posei_ = it1->second;
@@ -137,9 +136,8 @@ void BA_problem::addStereoFeaturetwoFtwoCResidual(int start_poseIdx, int cur_pos
         costFuti->set_startPose(posei_);
         costFuti->set_curPose(posej_);
         costFuti->set_curFeature(featureid_);
-        ///@@@此处需注意
-        ///@@@此时此地的添加左右目信息也需要进行修改
-        ///@@@costFuti->SetLeftTranslationImuFromCamera（）???
+        costFuti->SetLeftTranslationImuFromCamera(qic0, tic0);
+        costFuti->SetRightTranslationImuFromCamera(qic1, tic1);
 
         HashPoseIdTocostTwoFrameTwoCamFunction.insert(std::pair<int, costTwoFrameTwoCamFunction::Ptr>(start_poseIdx, costFuti));
         HashPoseIdTocostTwoFrameTwoCamFunction.insert(std::pair<int, costTwoFrameTwoCamFunction::Ptr>(cur_poseIdx, costFuti));
@@ -928,18 +926,22 @@ void BA_problem::setMargin(int poseIdx)
     pose_dim += 9 * 2;
 
     auto range = HashPoseIdTocostFunction.equal_range(poseIdx);
+    auto range1 = HashPoseIdTocostTwoFrameTwoCamFunction.equal_range(poseIdx);
     std::vector<costFunction::Ptr> marg_costFunction;
+    std::vector<costTwoFrameTwoCamFunction::Ptr> marg_costStereoFunction;
+    std::vector<int> m_MarginFeatureID;
 
     // auto range = HashPoseIdTocostFunction.equal_range(poseIdx);
     // std::vector<costFunction::Ptr> marg_costFunction;
+    // 将对应的相关约束全部加入
     for (auto iter = range.first; iter != range.second; ++iter)
     {
-
-        // // 并且这个edge还需要存在，而不是已经被remove了
-        // if (m_costFunctions.find(iter->second) == m_costFunctions.end())
-        //     continue;
-
         marg_costFunction.emplace_back(iter->second);
+    }
+
+    for (auto iter = range1.first; iter != range1.second; ++iter)
+    {
+        marg_costStereoFunction.emplace_back(iter->second);
     }
 
     std::unordered_map<int, FeatureID::Ptr> margLandmark;
@@ -948,11 +950,30 @@ void BA_problem::setMargin(int poseIdx)
     //    std::cout << "\n marg edge 1st id: "<< marg_edges.front()->Id() << " end id: "<<marg_edges.back()->Id()<<std::endl;
     for (size_t i = 0; i < marg_costFunction.size(); ++i)
     {
-        //        std::cout << "marg edge id: "<< marg_edges[i]->Id() <<std::endl;
         auto marg_lardmark = marg_costFunction[i]->get_curFeature();
-        marg_lardmark->SetOrderingId(pose_dim + marg_landmark_size);
-        margLandmark.insert(make_pair(marg_lardmark->get_ID(), marg_lardmark));
-        marg_landmark_size += marg_lardmark->get_localDimension();
+        int marg_lardmarkID = marg_lardmark->get_ID();
+        int bool_marg_lardmarkID = std::count(m_MarginFeatureID.begin(), m_MarginFeatureID.end(), marg_lardmarkID);
+        if (bool_marg_lardmarkID == 0)
+        {
+            marg_lardmark->SetOrderingId(pose_dim + marg_landmark_size);
+            margLandmark.insert(make_pair(marg_lardmark->get_ID(), marg_lardmark));
+            marg_landmark_size += marg_lardmark->get_localDimension();
+            m_MarginFeatureID.push_back(marg_lardmarkID);
+        }
+    }
+
+    for (size_t i = 0; i < marg_costStereoFunction.size(); ++i)
+    {
+        auto marg_lardmark = marg_costStereoFunction[i]->get_curFeature();
+        int marg_lardmarkID = marg_lardmark->get_ID();
+        int bool_marg_lardmarkID = std::count(m_MarginFeatureID.begin(), m_MarginFeatureID.end(), marg_lardmarkID);
+        if (bool_marg_lardmarkID == 0)
+        {
+            marg_lardmark->SetOrderingId(pose_dim + marg_landmark_size);
+            margLandmark.insert(make_pair(marg_lardmark->get_ID(), marg_lardmark));
+            marg_landmark_size += marg_lardmark->get_localDimension();
+            m_MarginFeatureID.push_back(marg_lardmarkID);
+        }
     }
 
     int cols = pose_dim + marg_landmark_size;
@@ -999,6 +1020,51 @@ void BA_problem::setMargin(int poseIdx)
                 int index_dim_j = index_dim[j];
 
                 //@@@@@@@@@@  信息矩阵的添加
+                MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
+                H_marg.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                if (j != i)
+                {
+                    H_marg.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                }
+            }
+
+            b_marg.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+        }
+    }
+
+    for (auto m_costTwoFrameTwoCamFunction : marg_costStereoFunction)
+    {
+        SLAM_Solver::Pose::Ptr start_cost_pose = m_costTwoFrameTwoCamFunction->get_startPose();
+        SLAM_Solver::Pose::Ptr cur_cost_pose = m_costTwoFrameTwoCamFunction->get_curPose();
+        SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costTwoFrameTwoCamFunction->get_curFeature();
+
+        m_costTwoFrameTwoCamFunction->ComputeResidual();
+        auto jacobians = m_costTwoFrameTwoCamFunction->Jacobians();
+        auto residual = m_costTwoFrameTwoCamFunction->Residual();
+
+        int order_start_frame_idx = start_cost_pose->OrderingId();
+        int order_cur_frame_idx = cur_cost_pose->OrderingId();
+        int order_cur_feature_idx = cur_cost_feature->OrderingId();
+        std::vector<int> index_H;
+
+        index_H.push_back(order_start_frame_idx);
+        index_H.push_back(order_cur_frame_idx);
+        index_H.push_back(order_cur_feature_idx);
+        std::vector<int> index_dim;
+        index_dim.push_back(6);
+        index_dim.push_back(6);
+        index_dim.push_back(1);
+        for (int i = 0; i < jacobians.size(); i++)
+        {
+            auto jacobians_i = jacobians[i];
+            int index_i = index_H[i];
+            int index_dim_i = index_dim[i];
+            for (int j = i; j < jacobians.size(); j++)
+            {
+                auto jacobians_j = jacobians[j];
+                int index_j = index_H[j];
+                int index_dim_j = index_dim[j];
                 MatXX hessian = jacobians_i.transpose() * jacobians_j;
                 // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
                 H_marg.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
