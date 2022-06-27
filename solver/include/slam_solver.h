@@ -66,6 +66,9 @@ public:
     void setMargin(int poseIdx);
     void getSolveResults();                                                       // 获取优化结果
 
+    void getPoseResults(std::vector<Eigen::Quaterniond>& m_q, std::vector<Eigen::Vector3d>& m_p);
+    void getInvDepthResults(std::vector<double>& invDepth);
+
     Pose::Ptr get_Pose(int poseIdx);
     FeatureID::Ptr get_FeatureID(int featureIdx);
     std::vector<int> get_all_Poseidx();
@@ -84,6 +87,8 @@ private:
     void setOrdering();
     void readParameters(std::string config_file);
     void makeHession();
+
+    void getBlockHession();
 
     void ComputeLambdaInitLM();
     void SolveLinearSystem();

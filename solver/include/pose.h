@@ -34,6 +34,9 @@ namespace SLAM_Solver
 
     public:
         int m_frame_id;                         // frame id
+
+        MatXX m_BlockMatrix;                    // 分块矩阵的矩阵
+        VecX residual_;                         // 该分块矩阵对应的残差
         
 
     private:

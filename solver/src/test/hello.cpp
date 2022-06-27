@@ -1,6 +1,8 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <cv_bridge/cv_bridge.h>
 #include <glog/logging.h>
 #include <ros/ros.h>
@@ -32,8 +34,8 @@ struct Frame {
  * @retval None
  */
 void GetSimDataInWordFrame(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &points) {
-    int featureNums = 60;  // 特征数目，假设每帧都能观测到所有的特征
-    int poseNums = 15;     // 相机数目
+    int featureNums = 10;  // 特征数目，假设每帧都能观测到所有的特征
+    int poseNums = 10;     // 相机数目
 
     double radius = 8;
     for (int n = 0; n < poseNums; ++n) {
@@ -117,6 +119,34 @@ void add_camera_pose_noise(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
     }
 }
 
+void matrix()
+{
+    Eigen::MatrixXd H(Eigen::MatrixXd::Zero(385, 385));
+    Eigen::MatrixXd b(Eigen::MatrixXd::Zero(385, 1));
+    std::default_random_engine generator1;
+    
+
+    for(int i = 0; i < 385; i ++ ) {
+        // std::cout << "i: " << i << std::endl;
+        std::normal_distribution<double>q_rand(0, 0.005);
+        for(int j = 0; j < i; j++) {   
+            // std::cout << "j: " << j << std::endl;         
+            double x = q_rand(generator1);
+            // std::cout << "zhiwei: " << x << std::endl;
+            H(i, j) += x;
+            if(i != j){
+                H(j, i) += x;
+            }
+        }
+        b(i, 0) += q_rand(generator1);
+    }
+
+    std::ofstream fout("/home/hhy/bishe/SLAM_solver/src/SlamSolver/results/矩阵.txt");
+    fout << "矩阵H差值为： " << std::endl << H << std::endl;
+    fout << "矩阵b差值为： " << std::endl << b << std::endl;
+    fout.close();
+}
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "multi_seprator");
@@ -134,6 +164,7 @@ int main(int argc, char** argv)
     vector<Frame> cameras;
     vector<Eigen::Vector3d> points;
     GetSimDataInWordFrame(cameras, points); // 得到仿真数据（相机位姿和三维点）
+    // matrix();
 
     vector<Frame> noise_cameras;
     vector<Eigen::Vector3d> noise_points;
@@ -154,38 +185,39 @@ int main(int argc, char** argv)
     // std::vector<SLAM_Solver::Pose::Ptr> vec_pose =  BAProblem.get_all_Pose();
     // std::cout << "00000000000000000000000000: " << vec_pose.size() << std::endl;
     LOG(INFO) << "Parameter block added! ! !";
+    matrix();
 
-    std::default_random_engine generator;
-    std::normal_distribution<double> noise_pdf(0., 1.);
-    double noise = 0;
-    int feature_inx = 0;
+    // std::default_random_engine generator;
+    // std::normal_distribution<double> noise_pdf(0., 1.);
+    // double noise = 0;
+    // int feature_inx = 0;
 
-    LOG(INFO) << "Residual block add started! ! !";
-    for(int i = 0; i < points.size(); i++) {
-        Eigen::Vector3d Pw = points[i];
-        Eigen::Vector3d Pc = noise_cameras[0].Rwc.transpose() * (Pw - noise_cameras[0].twc); // 转到相机坐标
-        noise = noise_pdf(generator);
-        double inverse_depth = 1. / (Pc.z()); // 逆深度 + 噪声
-        BAProblem.addFeatureParameterBlock(inverse_depth, i);
-        for (int j = 1; j < noise_cameras.size(); ++j) {
-            Eigen::Vector3d pt_i = noise_cameras[0].featurePerId.find(i)->second; // 起始帧 0帧
-            Eigen::Vector3d pt_j = noise_cameras[j].featurePerId.find(i)->second; // 第j帧
-            BAProblem.addFeatureResidualBlock(0, j, i, pt_i, pt_j);
-            feature_inx++;
-        }
-    }
-    LOG(INFO) << "Residual block added succedd! ! !";
+    // LOG(INFO) << "Residual block add started! ! !";
+    // for(int i = 0; i < points.size(); i++) {
+    //     Eigen::Vector3d Pw = points[i];
+    //     Eigen::Vector3d Pc = noise_cameras[0].Rwc.transpose() * (Pw - noise_cameras[0].twc); // 转到相机坐标
+    //     noise = noise_pdf(generator);
+    //     double inverse_depth = 1. / (Pc.z()); // 逆深度 + 噪声
+    //     BAProblem.addFeatureParameterBlock(inverse_depth, i);
+    //     for (int j = 1; j < noise_cameras.size(); ++j) {
+    //         Eigen::Vector3d pt_i = noise_cameras[0].featurePerId.find(i)->second; // 起始帧 0帧
+    //         Eigen::Vector3d pt_j = noise_cameras[j].featurePerId.find(i)->second; // 第j帧
+    //         BAProblem.addFeatureResidualBlock(0, j, i, pt_i, pt_j);
+    //         feature_inx++;
+    //     }
+    // }
+    // LOG(INFO) << "Residual block added succedd! ! !";
 
-    LOG(INFO) << "costF_tests started! ! !";
-    std::vector<SLAM_Solver::costFunction::Ptr> costF_tests = BAProblem.get_all_costFunction();
-    int z = 1;
-    for(auto costF_test : costF_tests) {
-        // LOG(INFO) << "costF_tests started the   " << i << "   tset !!!";
+    // LOG(INFO) << "costF_tests started! ! !";
+    // std::vector<SLAM_Solver::costFunction::Ptr> costF_tests = BAProblem.get_all_costFunction();
+    // int z = 1;
+    // for(auto costF_test : costF_tests) {
+    //     // LOG(INFO) << "costF_tests started the   " << i << "   tset !!!";
 
-        costF_test->SetTranslationImuFromCamera(qic, tic);
-        costF_test->ComputeResidual();
-        z++; 
-    }
+    //     costF_test->SetTranslationImuFromCamera(qic, tic);
+    //     costF_test->ComputeResidual();
+    //     z++; 
+    // }
 
     // std::vector<int> vec_test;
     // if(vec_test.size() == 0)
@@ -203,8 +235,8 @@ int main(int argc, char** argv)
     //     std::cout << "push出vector中的第" << i << "ge  data: " << poseidx[i] << std::endl;
     // }
        
-    BAProblem.solve();
-    BAProblem.getSolveResults();
+    // BAProblem.solve();
+    // BAProblem.getSolveResults();
 
     // LOG(INFO) << "真实的位姿轨迹 ! ! !： ";
     // for(int i = 0; i < cameras.size(); i++) {
@@ -231,7 +263,11 @@ int main(int argc, char** argv)
     //     double inverse_depth = 1. / (Pc.z()); // 逆深度 + 噪声
     //     std::cout << "第" << i << "点的逆深度为： " << inverse_depth << std::endl;
     // }
+
+
     
+    // std::cout << "H矩阵为： " << std::endl << H << std::endl;
+    // std::cout << "矩阵b为： " << std::endl << b << std::endl;
     
     return 0;
 }

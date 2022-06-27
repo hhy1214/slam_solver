@@ -43,7 +43,17 @@ add_executable(test1
     src/motion.cpp
     )
 
-
 target_link_libraries(test1 ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_INCLUDE_DIR})  #${glog_LIBS}
+
+add_executable(test2
+    src/test/testStereoInertial.cpp
+    src/pose.cpp
+    src/slam_solver.cpp
+    src/utility.cpp
+    src/parameters.cpp
+    src/motion.cpp
+    )
+
+target_link_libraries(test2 ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_INCLUDE_DIR})  #${glog_LIBS}
 
 

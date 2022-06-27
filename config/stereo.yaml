@@ -1,0 +1,85 @@
+%YAML:1.0
+
+#common parameters
+#support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 纯双目测试
+imu: 1       
+num_of_cam: 1
+stereo: 1
+
+#landmarktype
+#inv_depth: 0; xyz: 1
+landmarktype: 0 
+
+camera0_imu_topic: "/camera1/imu"
+
+
+camera0_left_topic: "/camera1/infra1/image_rect_raw"
+camera0_right_topic: "/camera1/infra2/image_rect_raw"
+
+
+output_path: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/results"
+
+image_width: 640
+image_height: 640
+
+cam0_left_distortion_parameters:
+   k1: 0
+   k2: 0
+   p1: 0
+   p2: 0
+cam0_left_projection_parameters:
+   fx: 460
+   fy: 460
+   cx: 255
+   cy: 255
+
+cam0_right_distortion_parameters:
+   k1: 0
+   k2: 0
+   p1: 0
+   p2: 0
+cam0_right_projection_parameters:
+   fx: 460
+   fy: 460
+   cx: 255
+   cy: 255
+
+# camera0 extrinsic param
+imu_T_cam0_left: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
+           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
+           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
+           0, 0, 0, 1]
+
+# camera0 extrinsic param
+imu_T_cam0_right: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0.0125552670891, -0.999755099723, 0.0182237714554, -0.0198435579556,
+           0.999598781151, 0.0130119051815, 0.0251588363115, 0.0453689425024,
+          -0.0253898008918, 0.0179005838253, 0.999517347078, 0.00786212447038,
+          0, 0, 0, 1]
+
+#imu parameters       The more accurate parameters you provide, the better performance
+camera0_acc_n: 0.258563568032           # accelerometer measurement noise standard deviation. #0.2   0.04
+camera0_gyr_n: 0.0377318721769       # gyroscope measurement noise standard deviation.     #0.05  0.004
+camera0_acc_w: 0.000466069600446       # accelerometer bias random work noise standard deviation.  #0.002
+camera0_gyr_w: 3.44012936063e-05        # gyroscope bias random work noise standard deviation.     #4.0e-5
+
+g_norm: 9.805         # gravity magnitude
+
+# cam_pose_left_file: "/home/cl/workspace/project/intel/ba_solver_02/src/solver/src/test/inputData/pose.txt"
+cam_pose_left_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/input/cam_pose_left.txt"
+cam_pose_right_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/input/cam_pose_right.txt"
+imu_pose_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/input/imu_pose.txt"
+
+
+# 输出
+point_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/input/pointStereoInertial.txt"
+imu_int_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/output/imuIntStereoInertial.txt"
+opt_pose_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/output/optStereoInertial.txt"
+gauss_pose_file: "/home/hhy/bishe/SLAM_solver/src/SlamSolver/solver/src/test/output/gaussStereoInertial.txt"

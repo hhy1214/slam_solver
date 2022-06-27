@@ -253,6 +253,8 @@ void BA_problem::solve()
 {
     setOrdering();
 
+    // getBlockHession();
+
     makeHession();
 
     ComputeLambdaInitLM();
@@ -331,7 +333,7 @@ void BA_problem::RollbackStates()
             for (auto m_Motion : m_Motions)
             {
                 ulong idx_motion = m_Motion.second->OrderingId();
-                ulong dim = 6;
+                ulong dim = 9;
                 VecX delta = delta_x_.segment(idx_motion, dim);
                 m_Motion.second->Plus(-delta);
             }
@@ -533,7 +535,7 @@ void BA_problem::ComputeLambdaInitLM()
     }
     LOG(INFO) << "currentChi_: " << currentChi_;
 
-    stopThresholdLM_ = 1e-6 * currentChi_; // 迭代条件为 误差下降 1e-6 倍
+    stopThresholdLM_ = 1e-10 * currentChi_; // 迭代条件为 误差下降 1e-6 倍
 
     double maxDiagonal = 0;
     ulong size = Hessian_.cols();
@@ -588,6 +590,239 @@ void BA_problem::setOrdering()
             ordering_landmarks_ += it->second->get_localDimension();
         }
     }
+}
+
+void BA_problem::getBlockHession()
+{
+      int size = ordering_generic_;
+    std::cout << "H矩阵大小： " << size << std::endl;
+
+    // 直接构造大的 H 矩阵
+    MatXX H(MatXX::Zero(size, size));
+    VecX b(VecX::Zero(size));
+    std::cout << H.cols() << std::endl;
+    LOG(INFO) << "信息矩阵的列: " << H.cols() << "以及行： " << H.rows();
+    LOG(INFO) << "残差的列: " << b.cols() << "以及行： " << b.rows();
+
+    for (auto m_costFunction : m_costFunctions)
+    {
+        SLAM_Solver::Pose::Ptr start_cost_pose = m_costFunction->get_startPose();
+        SLAM_Solver::Pose::Ptr cur_cost_pose = m_costFunction->get_curPose();
+        SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costFunction->get_curFeature();
+        m_costFunction->ComputeResidual();
+        auto jacobians = m_costFunction->Jacobians();
+        auto residual = m_costFunction->Residual();
+
+        int start_frameIdx = start_cost_pose->get_ID();
+        int cur_frameIdx = cur_cost_pose->get_ID();
+        int cur_featureIdx = cur_cost_feature->get_ID();
+
+        int order_start_frame_idx = start_cost_pose->OrderingId();
+        int order_cur_frame_idx = cur_cost_pose->OrderingId();
+        int order_cur_feature_idx = cur_cost_feature->OrderingId();
+        // std::cout << "66666666666666666666666" << std::endl;
+        // std::cout << "构造残差创建的每一个帧索引 index_start: " << order_start_frame_idx << " index_cur: " << order_cur_frame_idx << std::endl;
+        // std::cout << "构造残差创建的每一个图像索引 index_feature: " << order_cur_feature_idx << std::endl;
+
+        int index_start = find(PoseIdxs.begin(), PoseIdxs.end(), start_frameIdx) - PoseIdxs.begin();
+        int index_cur = find(PoseIdxs.begin(), PoseIdxs.end(), cur_frameIdx) - PoseIdxs.begin();
+        int index_feature = find(FeatureIDIdxs.begin(), FeatureIDIdxs.end(), cur_featureIdx) - FeatureIDIdxs.begin();
+        // std::cout << "构造残差创建的每一个帧索引 index_start: " << index_start << " index_cur: " << index_cur << std::endl;
+        // std::cout << "构造残差创建的每一个图像索引 index_feature: " << index_feature << std::endl;
+
+        // int index_H_posei = index_start * 6;
+        // int index_H_posej = index_cur * 6;
+        // int index_H_feature = H_pose_size + index_feature;
+        std::vector<int> index_H;
+        // index_H.push_back(index_H_feature);
+        // index_H.push_back(index_H_posei);
+        // index_H.push_back(index_H_posej);
+
+        index_H.push_back(order_cur_feature_idx);
+        index_H.push_back(order_start_frame_idx);
+        index_H.push_back(order_cur_frame_idx);
+        std::vector<int> index_dim;
+        index_dim.push_back(1);
+        index_dim.push_back(6);
+        index_dim.push_back(6);
+        for (int i = 0; i < jacobians.size(); i++)
+        {
+            auto jacobians_i = jacobians[i];
+            int index_i = index_H[i];
+            int index_dim_i = index_dim[i];
+            for (int j = i; j < jacobians.size(); j++)
+            {
+                auto jacobians_j = jacobians[j];
+                int index_j = index_H[j];
+                int index_dim_j = index_dim[j];
+                MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
+                H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                if (j != i)
+                {
+                    H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                }
+            }
+
+            b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+        }
+    }
+    LOG(INFO) << "BA_problem make 视觉左目 Hession succeeded!!!!!";
+
+    if (parameters->STEREO)
+    {
+        if (m_costOneFrameTwoCamFunctions.size() != 0)
+        {
+            for (auto m_costOneFrameTwoCamFunction : m_costOneFrameTwoCamFunctions)
+            {
+                SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costOneFrameTwoCamFunction->get_curFeature();
+
+                int order_start_frame_idx = cur_cost_feature->OrderingId();
+                int order_dim = cur_cost_feature->get_localDimension();
+                auto jacobians = m_costOneFrameTwoCamFunction->Jacobians();
+                auto residual = m_costOneFrameTwoCamFunction->Residual();
+
+                for (int i = 0; i < jacobians.size(); i++)
+                {
+                    auto jacobians_i = jacobians[i];
+                    int index_i = order_start_frame_idx;
+                    int index_dim_i = order_dim;
+                    for (int j = i; j < jacobians.size(); j++)
+                    {
+                        auto jacobians_j = jacobians[j];
+                        int index_j = order_start_frame_idx;
+                        int index_dim_j = order_dim;
+                        MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                        H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                        if (j != i)
+                        {
+                            H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                        }
+                    }
+
+                    b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+                }
+            }
+        }
+
+        if (m_costTwoFrameTwoCamFunctions.size() != 0)
+        {
+            std::cout << "5555555555555" << std::endl;
+            for (auto m_costTwoFrameTwoCamFunction : m_costTwoFrameTwoCamFunctions)
+            {
+                SLAM_Solver::Pose::Ptr start_cost_pose = m_costTwoFrameTwoCamFunction->get_startPose();
+                SLAM_Solver::Pose::Ptr cur_cost_pose = m_costTwoFrameTwoCamFunction->get_curPose();
+                SLAM_Solver::FeatureID::Ptr cur_cost_feature = m_costTwoFrameTwoCamFunction->get_curFeature();
+
+                m_costTwoFrameTwoCamFunction->ComputeResidual();
+                auto jacobians = m_costTwoFrameTwoCamFunction->Jacobians();
+                auto residual = m_costTwoFrameTwoCamFunction->Residual();
+
+                int order_start_frame_idx = start_cost_pose->OrderingId();
+                int order_cur_frame_idx = cur_cost_pose->OrderingId();
+                int order_cur_feature_idx = cur_cost_feature->OrderingId();
+                std::vector<int> index_H;
+
+                index_H.push_back(order_start_frame_idx);
+                index_H.push_back(order_cur_frame_idx);
+                index_H.push_back(order_cur_feature_idx);
+                std::vector<int> index_dim;
+                index_dim.push_back(6);
+                index_dim.push_back(6);
+                index_dim.push_back(1);
+                for (int i = 0; i < jacobians.size(); i++)
+                {
+                    auto jacobians_i = jacobians[i];
+                    int index_i = index_H[i];
+                    int index_dim_i = index_dim[i];
+                    for (int j = i; j < jacobians.size(); j++)
+                    {
+                        auto jacobians_j = jacobians[j];
+                        int index_j = index_H[j];
+                        int index_dim_j = index_dim[j];
+                        MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                        // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
+                        H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                        if (j != i)
+                        {
+                            H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                        }
+                    }
+
+                    b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+                }
+            }
+        }
+    }
+
+    if (parameters->USE_IMU)
+    {
+        LOG(INFO) << "H矩阵开始计算对应的IMU约束信息!!!!!";
+        if (m_costIMUFunctions.size() != 0)
+        {
+            for (auto m_costIMUFunction : m_costIMUFunctions)
+            {
+                SLAM_Solver::Pose::Ptr start_cost_pose = m_costIMUFunction->get_startPose();
+                SLAM_Solver::Pose::Ptr cur_cost_pose = m_costIMUFunction->get_curPose();
+                SLAM_Solver::Motion::Ptr curMotion = m_costIMUFunction->get_curMotion();
+                SLAM_Solver::Motion::Ptr startMotion = m_costIMUFunction->get_startMotion();
+
+                auto jacobians = m_costIMUFunction->Jacobians();
+                auto residual = m_costIMUFunction->Residual();
+
+                int start_pose_index = start_cost_pose->OrderingId();
+                int cur_pose_index = cur_cost_pose->OrderingId();
+                int start_motion_index = startMotion->OrderingId();
+                int cur_motion_index = curMotion->OrderingId();
+
+                int start_pose_dim = start_cost_pose->get_localDimension();
+                int cur_pose_dim = cur_cost_pose->get_localDimension();
+                int start_motion_dim = startMotion->get_localDimension();
+                int cur_motion_dim = curMotion->get_localDimension();
+
+                std::vector<int> index_H;
+                index_H.push_back(start_pose_index);
+                index_H.push_back(start_motion_index);
+                index_H.push_back(cur_pose_index);
+                index_H.push_back(cur_motion_index);
+                std::vector<int> index_dim;
+                index_dim.push_back(start_pose_dim);
+                index_dim.push_back(start_motion_dim);
+                index_dim.push_back(cur_pose_dim);
+                index_dim.push_back(cur_motion_dim);
+
+                for (int i = 0; i < jacobians.size(); i++)
+                {
+                    auto jacobians_i = jacobians[i];
+                    int index_i = index_H[i];
+                    int index_dim_i = index_dim[i];
+                    for (int j = i; j < jacobians.size(); j++)
+                    {
+                        auto jacobians_j = jacobians[j];
+                        int index_j = index_H[j];
+                        int index_dim_j = index_dim[j];
+                        MatXX hessian = jacobians_i.transpose() * jacobians_j;
+                        // std::cout << "构建的信息矩阵 i: " << i << " j: " << j << hessian << std::endl;
+                        H.block(index_i, index_j, index_dim_i, index_dim_j).noalias() += hessian;
+                        if (j != i)
+                        {
+                            H.block(index_j, index_i, index_dim_j, index_dim_i).noalias() += hessian.transpose();
+                        }
+                    }
+
+                    b.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
+                }
+            }
+        }
+    }
+
+    Hessian_ = H;
+    std::cout << "分块矩阵所构建的H is :" << std::endl << Hessian_ << std::endl;
+    b_ = b;
+    std::cout << "分块矩阵所构建的b is :" << std::endl << b_ << std::endl;
+
+    LOG(INFO) << "BA_problem make Hession succeeded!!!!!";
+    delta_x_ = VecX::Zero(size); // initial delta_x = 0_n;
 }
 
 void BA_problem::makeHession()
@@ -845,8 +1080,8 @@ void BA_problem::getSolveResults()
         int start_frameIdx = m_Pose->get_ID();
         Eigen::Quaterniond q1 = m_Pose->get_rotate();
         Eigen::Vector3d t1 = m_Pose->get_translation();
-        std::cout << std::setprecision(20) << start_frameIdx << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
-                  << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
+        // std::cout << std::setprecision(20) << start_frameIdx << " " << t1[0] << " " << t1[1] << " " << t1[2] << " "
+        //           << q1.x() << " " << q1.y() << " " << q1.z() << " " << q1.w() << std::endl;
     }
 
     std::vector<FeatureID::Ptr> fea_res;
@@ -862,7 +1097,7 @@ void BA_problem::getSolveResults()
     {
         int start_feaIdx = m_FeatureID->get_ID();
         double m_faeture_p = m_FeatureID->get_invdep();
-        std::cout << "优化第 " << start_feaIdx << "逆深度的值为： " << m_faeture_p << std::endl;
+        // std::cout << "优化第 " << start_feaIdx << "逆深度的值为： " << m_faeture_p << std::endl;
     }
 }
 
@@ -922,8 +1157,9 @@ void BA_problem::setMargin(int poseIdx)
     /// TODO
     /// pose_dim++
     int pose_dim;
-    pose_dim = m_Poses.size() * 6;
-    pose_dim += 9 * 2;
+    pose_dim = m_Poses.size() * 15;
+    std::cout << "m_Poses.size(): " << m_Poses.size() << std::endl;
+    // pose_dim += 9 * 2;
 
     auto range = HashPoseIdTocostFunction.equal_range(poseIdx);
     auto range1 = HashPoseIdTocostTwoFrameTwoCamFunction.equal_range(poseIdx);
@@ -934,6 +1170,7 @@ void BA_problem::setMargin(int poseIdx)
     // auto range = HashPoseIdTocostFunction.equal_range(poseIdx);
     // std::vector<costFunction::Ptr> marg_costFunction;
     // 将对应的相关约束全部加入
+    std::cout << "将对应的相关约束全部加入" << std::endl;
     for (auto iter = range.first; iter != range.second; ++iter)
     {
         marg_costFunction.emplace_back(iter->second);
@@ -947,7 +1184,7 @@ void BA_problem::setMargin(int poseIdx)
     std::unordered_map<int, FeatureID::Ptr> margLandmark;
     // 构建 Hessian 的时候 pose 的顺序不变，landmark的顺序要重新设定
     int marg_landmark_size = 0;
-    //    std::cout << "\n marg edge 1st id: "<< marg_edges.front()->Id() << " end id: "<<marg_edges.back()->Id()<<std::endl;
+    std::cout << "marg_landmark_size" << std::endl;
     for (size_t i = 0; i < marg_costFunction.size(); ++i)
     {
         auto marg_lardmark = marg_costFunction[i]->get_curFeature();
@@ -977,6 +1214,8 @@ void BA_problem::setMargin(int poseIdx)
     }
 
     int cols = pose_dim + marg_landmark_size;
+    std::cout << "构建误差 H 矩阵col: " << cols <<  std::endl;
+    std::cout << "构建误差 H 矩阵" << std::endl;
     /// 构建误差 H 矩阵 H = H_marg + H_pp_prior
     MatXX H_marg(MatXX::Zero(cols, cols));
     VecX b_marg(VecX::Zero(cols));
@@ -1033,6 +1272,8 @@ void BA_problem::setMargin(int poseIdx)
         }
     }
 
+    std::cout << "构建误差 H 矩阵单目" << std::endl;
+
     for (auto m_costTwoFrameTwoCamFunction : marg_costStereoFunction)
     {
         SLAM_Solver::Pose::Ptr start_cost_pose = m_costTwoFrameTwoCamFunction->get_startPose();
@@ -1077,6 +1318,7 @@ void BA_problem::setMargin(int poseIdx)
             b_marg.segment(index_i, index_dim_i).noalias() -= jacobians_i.transpose() * residual;
         }
     }
+    std::cout << "构建误差 H 矩阵成功" << std::endl;
 
     /// marg landmark
     int reserve_size = pose_dim;
@@ -1112,6 +1354,8 @@ void BA_problem::setMargin(int poseIdx)
         H_marg += H_prior_;
         b_marg += b_prior_;
     }
+    std::cout << " marg landmark" << std::endl;
+    std::cout << "cols: " << H_marg.cols() << "  " <<  H_marg.rows() << std::endl;
 
     /// marg frame and speedbias
     int marg_dim = 0;
@@ -1122,7 +1366,7 @@ void BA_problem::setMargin(int poseIdx)
 
         int idx = marg_motion->OrderingId();
         int dim = marg_motion->get_localDimension();
-        //        std::cout << k << " "<<idx << std::endl;
+        std::cout << dim << " "<<idx << std::endl;
         marg_dim += dim;
         // move the marg pose to the Hmm bottown right
         // 将 row i 移动矩阵最下面
@@ -1130,18 +1374,23 @@ void BA_problem::setMargin(int poseIdx)
         Eigen::MatrixXd temp_botRows = H_marg.block(idx + dim, 0, reserve_size - idx - dim, reserve_size);
         H_marg.block(idx, 0, reserve_size - idx - dim, reserve_size) = temp_botRows;
         H_marg.block(reserve_size - dim, 0, dim, reserve_size) = temp_rows;
+        std::cout << "将 row i 移动矩阵最下面" << std::endl;
 
         // 将 col i 移动矩阵最右边
         Eigen::MatrixXd temp_cols = H_marg.block(0, idx, reserve_size, dim);
         Eigen::MatrixXd temp_rightCols = H_marg.block(0, idx + dim, reserve_size, reserve_size - idx - dim);
         H_marg.block(0, idx, reserve_size, reserve_size - idx - dim) = temp_rightCols;
         H_marg.block(0, reserve_size - dim, reserve_size, dim) = temp_cols;
+        std::cout << "将 col i 移动矩阵最右边" << std::endl;
 
         Eigen::VectorXd temp_b = b_marg.segment(idx, dim);
         Eigen::VectorXd temp_btail = b_marg.segment(idx + dim, reserve_size - idx - dim);
         b_marg.segment(idx, reserve_size - idx - dim) = temp_btail;
         b_marg.segment(reserve_size - dim, dim) = temp_b;
+        std::cout << "  " << std::endl;
     }
+
+    std::cout << " marg speedbias" << std::endl;
 
     {
         auto it1 = m_Poses.find(poseIdx);
@@ -1169,6 +1418,7 @@ void BA_problem::setMargin(int poseIdx)
         b_marg.segment(idx, reserve_size - idx - dim) = temp_btail;
         b_marg.segment(reserve_size - dim, dim) = temp_b;
     }
+    std::cout << " marg frame and speedbias" << std::endl;
 
     double eps = 1e-8;
     int m2 = marg_dim;
@@ -1235,5 +1485,33 @@ void BA_problem::test()
         // ulong dim = 1;
         // VecX delta = delta_x_.segment(index_feature, dim);
         // m_FeatureID.second->Plus(delta);
+    }
+}
+
+void BA_problem::getPoseResults(std::vector<Eigen::Quaterniond>& m_q, std::vector<Eigen::Vector3d>& m_p) {
+    std::vector<Pose::Ptr> res;
+    for (auto pose : m_Poses){
+        res.push_back(pose.second);
+    }
+    res.shrink_to_fit();
+    std::sort(res.begin(), res.end(), [](Pose::Ptr ptr1, Pose::Ptr ptr2) {
+        return ptr1->m_frame_id < ptr2->m_frame_id;
+    }); 
+    m_q.clear(); m_p.clear();
+    for (auto m_Pose: res) {
+        int start_frameIdx = m_Pose->get_ID();
+        Eigen::Quaterniond q1 = m_Pose->get_rotate();
+        Eigen::Vector3d t1 = m_Pose->get_translation();
+        m_q.push_back(q1);
+        m_p.push_back(t1);        
+    } 
+}
+
+void BA_problem::getInvDepthResults(std::vector<double>& invDepth) {
+    for(auto m_FeatureID : m_FeatureIDs) {
+        int start_feaIdx = m_FeatureID.second->get_ID();
+        double m_faeture_p = m_FeatureID.second->get_invdep();
+        invDepth.push_back(m_faeture_p);
+        // std::cout << "优化第 " << start_feaIdx << "逆深度的值为： " << m_faeture_p << std::endl;
     }
 }
