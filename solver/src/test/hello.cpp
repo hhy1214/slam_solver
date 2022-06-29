@@ -121,12 +121,12 @@ void add_camera_pose_noise(vector<Frame> &cameraPoses, vector<Eigen::Vector3d> &
 
 void matrix()
 {
-    Eigen::MatrixXd H(Eigen::MatrixXd::Zero(385, 385));
-    Eigen::MatrixXd b(Eigen::MatrixXd::Zero(385, 1));
+    Eigen::MatrixXd H(Eigen::MatrixXd::Zero(300, 300));
+    Eigen::MatrixXd b(Eigen::MatrixXd::Zero(300, 1));
     std::default_random_engine generator1;
     
 
-    for(int i = 0; i < 385; i ++ ) {
+    for(int i = 0; i < 300; i ++ ) {
         // std::cout << "i: " << i << std::endl;
         std::normal_distribution<double>q_rand(0, 0.005);
         for(int j = 0; j < i; j++) {   

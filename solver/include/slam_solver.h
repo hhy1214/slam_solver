@@ -61,6 +61,20 @@ public:
     void solve();                                                                 // 优化求解
     void test();
 
+    //添加边缘化残差
+    void SetHessianPrior(const MatXX& H){H_prior_ = H;}
+    void SetbPrior(const VecX& b){b_prior_ = b;}
+    void SetErrPrior(const VecX& b){err_prior_ = b;}
+    void SetJtPrior(const MatXX& J){Jt_prior_inv_ = J;}
+
+    //获取边缘化信息
+    MatXX GetHessianPrior(){ return H_prior_;}
+    VecX GetbPrior(){ return b_prior_;}
+    VecX GetErrPrior(){ return err_prior_;}
+    MatXX GetJtPrior(){ return Jt_prior_inv_;}
+
+    void ExtendHessiansPriorSize(int dim);
+
 
     // void addPriorBlock();                                                         // 添加边缘化信息
     void setMargin(int poseIdx);

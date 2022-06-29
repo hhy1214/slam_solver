@@ -346,6 +346,12 @@ void BA_problem::RollbackStates()
         VecX delta = delta_x_.segment(index_feature, dim);
         m_FeatureID.second->Plus(-delta);
     }
+
+    // Roll back prior_
+    if (err_prior_.rows() > 0) {
+        b_prior_ = b_prior_backup_;
+        err_prior_ = err_prior_backup_;
+    }
 }
 
 bool BA_problem::IsGoodStepInLM()
@@ -362,6 +368,8 @@ bool BA_problem::IsGoodStepInLM()
         m_costFunction->ComputeResidual();
         tempChi += m_costFunction->Chi2();
     }
+    if (err_prior_.rows() > 0)
+        currentChi_ += err_prior_.norm();
     if (parameters->USE_IMU)
     {
         for (auto m_costIMUFunction : m_costIMUFunctions)
@@ -419,6 +427,17 @@ void BA_problem::UpdateStates()
         ulong dim = 1;
         VecX delta = delta_x_.segment(index_feature, dim);
         m_FeatureID.second->Plus(delta);
+    }
+
+    // update prior
+    if (err_prior_.rows() > 0) {
+        // BACK UP b_prior_
+        b_prior_backup_ = b_prior_;
+        err_prior_backup_ = err_prior_;
+
+        b_prior_ -= H_prior_ * delta_x_.head(ordering_poses_);       // update the error_prior
+        err_prior_ = -Jt_prior_inv_ * b_prior_.head(ordering_poses_ - 15);
+
     }
 }
 
@@ -533,6 +552,8 @@ void BA_problem::ComputeLambdaInitLM()
             currentChi_ += m_costIMUFunction->Chi2();
         }
     }
+    if (err_prior_.rows() > 0)
+        currentChi_ += err_prior_.norm();
     LOG(INFO) << "currentChi_: " << currentChi_;
 
     stopThresholdLM_ = 1e-10 * currentChi_; // 迭代条件为 误差下降 1e-6 倍
@@ -1055,6 +1076,25 @@ void BA_problem::makeHession()
         }
     }
 
+    LOG(INFO) << "BA_problem 先验信息添加!!!!!";
+
+    if (H_prior_.rows() > 0)
+    {
+        MatXX H_prior_tmp = H_prior_;
+        VecX b_prior_tmp = b_prior_;
+
+        for (auto m_Pose : m_Poses)
+        {
+            int idx = m_Pose.second->OrderingId();
+            int dim = m_Pose.second->get_localDimension();
+            H_prior_tmp.block(idx, 0, dim, H_prior_tmp.cols()).setZero();
+            H_prior_tmp.block(0, idx, H_prior_tmp.rows(), dim).setZero();
+            b_prior_tmp.segment(idx, dim).setZero();
+        }
+        Hessian_.topLeftCorner(ordering_poses_, ordering_poses_) += H_prior_tmp;
+        b_.head(ordering_poses_) += b_prior_tmp;
+    }
+
     Hessian_ = H;
     // std::cout << "ceres所构建的H is :" << std::endl << Hessian_ << std::endl;
     b_ = b;
@@ -1514,4 +1554,16 @@ void BA_problem::getInvDepthResults(std::vector<double>& invDepth) {
         invDepth.push_back(m_faeture_p);
         // std::cout << "优化第 " << start_feaIdx << "逆深度的值为： " << m_faeture_p << std::endl;
     }
+}
+
+
+void BA_problem::ExtendHessiansPriorSize(int dim)
+{
+    int size = H_prior_.rows() + dim;
+    H_prior_.conservativeResize(size, size);
+    b_prior_.conservativeResize(size);
+
+    b_prior_.tail(dim).setZero();
+    H_prior_.rightCols(dim).setZero();
+    H_prior_.bottomRows(dim).setZero();
 }
